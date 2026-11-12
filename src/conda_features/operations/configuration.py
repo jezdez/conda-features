@@ -139,6 +139,10 @@ def plan_change(
             if not requested or set(requested) - set(feature.settings):
                 raise CondaError(f"Only declared settings for {key} may be configured.")
         elif operation in ("enable", "disable"):
+            if feature.enabled_setting is None:
+                raise CondaError(
+                    f"Deploy {key} individually. It owns its deployment plan."
+                )
             requested = {feature.enabled_setting: operation == "enable"}
         else:
             raise CondaError(f"Unknown operation: {operation}")
@@ -175,7 +179,11 @@ def plan_change(
                 )
     # A change must not break a previously usable dependent at this scope.
     for key, (_, feature) in catalog.items():
-        if key not in selected and value(candidate, feature.enabled_setting):
+        if key not in selected and (
+            value(candidate, feature.enabled_setting)
+            if feature.enabled_setting
+            else feature.status(catalog, candidate, scope)["effective"] == "enabled"
+        ):
             if operation == "disable":
                 for prerequisite in set(feature.requires).intersection(selected):
                     raise CondaError(

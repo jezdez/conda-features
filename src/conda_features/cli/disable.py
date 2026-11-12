@@ -16,9 +16,30 @@ def execute(args, catalog, ctx, path, scope):
     from ..operations.configuration import plan_change
 
     if args.all:
+        deployments = [
+            name
+            for name, (_, feature) in catalog.items()
+            if feature.enabled_setting is None and scope in feature.scopes
+        ]
+        boolean_catalog = {
+            name: item
+            for name, item in catalog.items()
+            if item[1].enabled_setting is not None
+        }
         plan = plan_change(
-            catalog, ctx, path, scope, "disable", args.feature, all_features=True
+            boolean_catalog,
+            ctx,
+            path,
+            scope,
+            "disable",
+            args.feature,
+            all_features=True,
         )
     else:
         plan = select_feature(catalog, args.feature).disable(catalog, ctx, path, scope)
-    return confirm_and_apply(args, catalog, ctx, plan)
+    result = confirm_and_apply(args, catalog, ctx, plan)
+    if args.all and deployments:
+        result["message"] += (
+            " Disable deployment features individually: " + ", ".join(deployments) + "."
+        )
+    return result

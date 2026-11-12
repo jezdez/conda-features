@@ -20,7 +20,11 @@ def select_feature(catalog: Catalog, name: str) -> Feature:
 def confirm_and_apply(args, catalog, ctx, plan):
     from ..operations.configuration import apply_change
 
-    result = {key: val for key, val in plan.items() if key != "fingerprint"}
+    result = {
+        key: plan[key]
+        for key in ("operation", "features", "scope", "path", "changes")
+        if key in plan
+    }
     if args.dry_run:
         result["message"] = "Preview only. No changes made."
     elif not plan["changes"]:
@@ -37,7 +41,10 @@ def confirm_and_apply(args, catalog, ctx, plan):
             print("Proceed? [y/N] ", end="", file=sys.stderr, flush=True)
             if sys.stdin.readline().strip().lower() not in ("y", "yes"):
                 raise CondaError("Cancelled. No changes made.")
-        apply_change(plan, ctx)
+        if len(plan["features"]) == 1:
+            catalog[plan["features"][0]][1].apply(plan, ctx)
+        else:
+            apply_change(plan, ctx)
         YamlRawParameter.cache_clear()
         _, _, updated = target(args)
         result["status"] = [

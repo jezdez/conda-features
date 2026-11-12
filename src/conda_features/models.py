@@ -26,7 +26,7 @@ class Feature:
 
     name: str
     description: str
-    enabled_setting: str
+    enabled_setting: str | None = None
     maturity: str = "experimental"
     scopes: tuple[str, ...] = ("user",)
     settings: tuple[str, ...] = ()
@@ -38,6 +38,12 @@ class Feature:
     retired: bool = False
     replacement: str | None = None
     guidance: str = ""
+
+    def apply(self, plan: dict[str, Any], ctx: Context) -> None:
+        """Apply an approved configuration plan. Deployment providers override this."""
+        from .operations.configuration import apply_change
+
+        apply_change(plan, ctx)
 
     def enable(
         self, catalog: Catalog, ctx: Context, path: Path, scope: str
@@ -88,6 +94,7 @@ class Feature:
 
         from .operations.configuration import setting_context, value
 
+        assert self.enabled_setting is not None
         provider, _ = catalog[self.name]
         reasons = []
         if scope not in self.scopes:
@@ -138,9 +145,11 @@ class Feature:
                         reasons.append(f"Requires enabled feature {dependency}.")
                         reasons.extend(dependency_status["reasons"])
         for other, (_, other_feature) in catalog.items():
-            if (
-                other in self.conflicts or self.name in other_feature.conflicts
-            ) and value(ctx, other_feature.enabled_setting):
+            if (other in self.conflicts or self.name in other_feature.conflicts) and (
+                value(ctx, other_feature.enabled_setting)
+                if other_feature.enabled_setting
+                else other_feature.status(catalog, ctx, scope)["effective"] == "enabled"
+            ):
                 reasons.append(f"Feature conflict with {other}.")
         missing = [
             key for key in self.required_settings if value(ctx, key) in (None, "")

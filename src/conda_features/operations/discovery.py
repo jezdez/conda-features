@@ -69,7 +69,16 @@ def validate_catalog(catalog: Catalog, ctx: Context) -> None:
             )
         if feature.enabled_setting in feature.settings:
             raise CondaError(f"Use enable/disable to change {name}'s boolean setting.")
-        for key in (feature.enabled_setting, *feature.settings):
+        if feature.enabled_setting is None:
+            for method in ("enable", "disable", "status", "apply"):
+                if getattr(type(feature), method) is getattr(Feature, method):
+                    raise CondaError(
+                        f"Deployment feature {name} must implement {method}."
+                    )
+        for key in (
+            *((feature.enabled_setting,) if feature.enabled_setting else ()),
+            *feature.settings,
+        ):
             if key in owners:
                 raise CondaError(
                     f"Setting {key} is declared more than once ({owners[key]}, {name})."
