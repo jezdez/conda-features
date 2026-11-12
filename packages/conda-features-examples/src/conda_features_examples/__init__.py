@@ -1,1 +1,1 @@
-"""Simulated features for UX testing, not functional package integrations."""
+"""Real deployment providers for conda-pypi and conda-completion."""

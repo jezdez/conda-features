@@ -42,9 +42,18 @@ conda-features-examples = { path = "packages/conda-features-examples", editable 
 [tool.pixi.feature.examples.tasks]
 test-examples = "pytest tests/test_examples.py"
 
+[tool.pixi.feature.integration.dependencies]
+conda-pypi = "0.13.*"
+conda-rattler-solver = "26.10.*"
+conda-completion = "0.3.2.*"
+
+[tool.pixi.feature.integration.tasks]
+test-integration = "pytest tests/test_examples.py"
+
 [tool.pixi.environments]
 default = { features = [], solve-group = "default" }
 examples = { features = ["examples"], solve-group = "default" }
+integration = { features = ["examples", "integration"] }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

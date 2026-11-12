@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "conda-features-examples"
 version = "0.1.0"
-description = "Simulated conda feature providers for local UX testing"
+description = "Feature deployment providers for conda-pypi and conda-completion"
 requires-python = ">=3.12"
 dependencies = ["conda-features>=0.1.0"]
 

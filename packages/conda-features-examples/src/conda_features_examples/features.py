@@ -1,25 +1,25 @@
-"""Example declarations with no installation, network, or shell side effects."""
+"""Real deployment providers suitable for moving into their upstream packages."""
 
 from conda_features.hooks import hookimpl
-from conda_features.models import Feature
+
+from .completion import CompletionFeature
+from .pypi import PyPIFeature
 
 
 @hookimpl
 def conda_features():
-    yield Feature(
+    yield PyPIFeature(
         name="conda-pypi",
-        description="UX example: opt into PyPI package support",
-        enabled_setting="plugins.example_pypi_enabled",
+        description="Install and configure PyPI support with the Rattler solver",
         maturity="preview",
         scopes=("user", "environment"),
-        guidance="Simulation only. No PyPI provider, packages, or channels were installed or configured.",
+        guidance="Use conda install with packages from the conda-pypi channel. Disabling restores owned configuration, not installed packages.",
     )
-    yield Feature(
-        name="conda-completions",
-        description="UX example: choose shell completions",
-        enabled_setting="plugins.example_completions_enabled",
+    yield CompletionFeature(
+        name="conda-completion",
+        description="Install shell completion and generate completion data",
         maturity="stable",
         scopes=("user",),
-        settings=("plugins.example_completions_shell",),
-        guidance="Simulation only. Configure plugins.example_completions_shell to choose bash, zsh, fish, or powershell. No shell files are changed.",
+        settings=("plugins.feature_completion_shell",),
+        guidance="Restart your shell after enabling or disabling. Ensure its conda command uses the installation hosting conda-completion.",
     )
