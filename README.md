@@ -141,7 +141,32 @@ Providers need `conda-features` as a dependency. Feature IDs and owned setting n
 
 The provider reads `context.plugins.sample_enabled` to control its behavior. This plugin changes settings but does not intercept provider execution. Readiness describes declared checks, not proof that a remote service or login works. Providers must enforce their own runtime requirements.
 
-For deployment rather than a boolean setting, subclass `Feature`, omit `enabled_setting`, and implement `enable`, `disable`, `status`, and `apply`. Enable and disable return plans. Only `changes`, destination, scope, operation, and feature IDs are displayed. The CLI confirms the plan before calling `apply`. Keep credentials and raw configuration out of `changes`. See the PyPI and completion providers in `packages/conda-features-examples` for real implementations.
+For deployment rather than a boolean setting, declare steps:
+
+```python
+from conda_features.models import Feature
+from conda_features.steps import EnsureChannel, InstallPackages, SetSetting
+
+Feature(
+    name="conda-pypi",
+    description="Enable PyPI support",
+    steps=(
+        InstallPackages("conda-pypi>=0.13", "conda-rattler-solver>=26.10"),
+        SetSetting("solver", "rattler"),
+        EnsureChannel("conda-pypi"),
+    ),
+)
+```
+
+`Feature` plans the steps in order and disables them in reverse order. Core code owns receipts, stale-plan checks, and partial-failure reporting. Package steps leave packages installed on disable. Setting steps restore only values they changed. Channel steps remove only their channel, preserving later additions.
+
+Use one `InstallPackages` step per feature, passing all package specifications together, and at most one `EnsureChannel` step. Duplicate resource writers are rejected because their independent previews would otherwise become stale during application. Settings managed by `SetSetting` cannot also be owned by another feature.
+
+Channel claims must also be unique across features. Put a channel needed by several features in a shared prerequisite feature. The planner validates the combined configuration before applying steps. Setting values are normalized through conda, including booleans and enum settings. Channel receipts store a digest for cleanup comparisons, not copies of inherited channel URLs.
+
+Provider-specific steps implement `Step.check`, `plan`, and `apply`, with a stable `id`. `check` performs local inspection only. `plan` returns a `StepPlan` with a public change description, private apply data, and serializable ownership state. `apply` receives a checkpoint callback to save additional recovery state before a side effect. Keep secrets out of public descriptions and receipts. `ManagedBlock` supplies ownership and recovery for generated blocks in user files. The completion provider only supplies its shell paths, hook recognition, rendering, and upstream install command.
+
+Changing step IDs or using an older deployment receipt is refused rather than guessing how to undo it. The current receipt format is version 2. Disable deployments with the previous provider version before upgrading. Existing boolean-setting providers continue to work.
 
 Declarations should be cheap to import and must not read credentials, contact services, or run setup. Installed providers are trusted Python code, not sandboxed metadata.
 

@@ -60,9 +60,11 @@ Writes preserve comments and unrelated settings, use atomic file replacement,
 and reject previews whose destination changed. A sidecar lock coordinates this
 plugin's writers, but external editors do not honor it.
 
-Deployment providers can omit enabled_setting and implement enable, disable,
-status, and apply methods. Plans carry public changes and private apply data.
-The CLI confirms the public changes before calling apply. The separate
+Deployment providers can omit enabled_setting and declare steps such as
+InstallPackages, SetSetting, and EnsureChannel. Feature coordinates their
+planning, application, reverse-order disable, and recovery receipts.
+Provider-specific steps implement Step or ManagedBlock. Plans carry public
+changes and private apply data. The CLI confirms before applying. The separate
 conda-features-examples package deploys real PyPI support and shell completion,
 including installation of missing prerequisites. Bulk disable handles boolean
 features and identifies deployments that need individual disable commands.
