@@ -37,8 +37,10 @@ def test_text_listing_and_explanation(feature_cli):
     run, path, _ = feature_cli
     out, err, code = run("list")
     assert code == 0 and not err
-    assert "Feature  Maturity  Requested  Readiness  Description" in out
-    assert "sample  stable  disabled  ready  Use cached packages" in out
+    assert (
+        "Feature  Maturity  Requested  Effective setting  Readiness  Description" in out
+    )
+    assert "sample  stable  disabled  disabled  ready  Use cached packages" in out
     out, err, code = run("explain", "sample")
     assert code == 0 and not err
     for text in (
@@ -46,7 +48,8 @@ def test_text_listing_and_explanation(feature_cli):
         "Provider: test-provider",
         "Maturity: stable",
         "Requested: disabled",
-        "Effective: inactive",
+        "Effective setting: disabled",
+        "Runtime: unknown (provider execution is not observed)",
         "Readiness: ready",
         f"offline: sources {path}",
         "channel_alias: sources default",

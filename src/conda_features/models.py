@@ -70,10 +70,19 @@ class Feature:
         )
 
     def status(
-        self, catalog: Catalog, ctx: Context, scope: str, visiting: tuple[str, ...] = ()
+        self,
+        catalog: Catalog,
+        ctx: Context,
+        scope: str,
+        visiting: tuple[str, ...] = (),
+        *,
+        path: Path | None = None,
     ) -> dict[str, Any]:
         """Explain the configured choice and known prerequisites."""
         from conda import __version__
+        from conda.base.context import Context
+        from conda.cli.condarc import ConfigurationFile
+        from conda.common.configuration import YamlRawParameter
         from conda.models.version import VersionSpec
 
         from .operations.configuration import setting_context, value
@@ -91,7 +100,24 @@ class Feature:
             reasons.append(f"Requires conda {self.conda_version}.")
         if self.platforms and ctx.subdir not in self.platforms:
             reasons.append(f"Unsupported platform: {ctx.subdir}.")
-        requested = value(ctx, self.enabled_setting)
+        effective = value(ctx, self.enabled_setting)
+        requested = "unknown"
+        if path is not None:
+            saved_config = ConfigurationFile(path=path, context=ctx)
+            saved_ctx = Context(search_path=())
+            saved_ctx.raw_data.clear()
+            saved_ctx.raw_data[path] = YamlRawParameter.make_raw_parameters(
+                path, saved_config.content
+            )
+            owner, parameter = setting_context(saved_ctx, self.enabled_setting)
+            requested = "unset"
+            names = {parameter, *owner.describe_parameter(parameter)["aliases"]}
+            if any(
+                names.intersection(values) for values in owner.collect_all().values()
+            ):
+                requested = (
+                    "enabled" if value(saved_ctx, self.enabled_setting) else "disabled"
+                )
         if self.name in visiting:
             reasons.append(
                 "Feature dependency cycle: " + " -> ".join((*visiting, self.name))
@@ -104,7 +130,10 @@ class Feature:
                     dependency_status = catalog[dependency][1].status(
                         catalog, ctx, scope, (*visiting, self.name)
                     )
-                    if dependency_status["effective"] != "active":
+                    if (
+                        dependency_status["effective"] != "enabled"
+                        or dependency_status["readiness"] != "ready"
+                    ):
                         reasons.append(f"Requires enabled feature {dependency}.")
                         reasons.extend(dependency_status["reasons"])
         for other, (_, other_feature) in catalog.items():
@@ -130,8 +159,9 @@ class Feature:
             "provider": provider,
             "description": self.description,
             "maturity": self.maturity,
-            "requested": "enabled" if requested else "disabled",
-            "effective": "active" if requested and readiness == "ready" else "inactive",
+            "requested": requested,
+            "effective": "enabled" if effective else "disabled",
+            "runtime": "unknown",
             "readiness": readiness,
             "reasons": reasons,
             "sources": sources,

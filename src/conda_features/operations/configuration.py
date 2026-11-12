@@ -109,6 +109,7 @@ def plan_change(
     initial = fingerprint(path)
     config = ConfigurationFile(path=path, context=ctx)
     changes = {}
+    expected_values = {}
     ordered = []
 
     def visit(key, visiting=()):
@@ -145,15 +146,23 @@ def plan_change(
             _, previous = config.get_key(setting)
             config.set_key(setting, new_value)
             _, typed = config.get_key(setting)
+            expected_values[setting] = typed
             if previous != typed:
                 changes[setting] = typed
     candidate = prospective_context(ctx, path, config.content)
     candidate.validate_configuration()
     candidate.plugins.validate_configuration()
-    for setting, expected in changes.items():
+    for setting, expected in expected_values.items():
         if value(candidate, setting) != expected:
+            owner, parameter = setting_context(candidate, setting)
+            sources = [
+                str(source)
+                for source, values in owner.collect_all().items()
+                if parameter in values and str(source) != str(path)
+            ]
             raise CondaError(
-                f"Setting {setting} is overridden by another configuration source."
+                f"Setting {setting} is overridden. Other sources: {', '.join(sources)}. "
+                "Change or remove the override, then retry. No changes made."
             )
     for key in selected:
         if operation != "disable":
@@ -167,9 +176,15 @@ def plan_change(
     # A change must not break a previously usable dependent at this scope.
     for key, (_, feature) in catalog.items():
         if key not in selected and value(candidate, feature.enabled_setting):
+            if operation == "disable":
+                for prerequisite in set(feature.requires).intersection(selected):
+                    raise CondaError(
+                        f"Enabled feature {key} requires {prerequisite}. "
+                        "Disable the dependent first, or use disable --all at this scope."
+                    )
             before = feature.status(catalog, ctx, scope)
             after = feature.status(catalog, candidate, scope)
-            if before["effective"] == "active" and after["effective"] != "active":
+            if before["readiness"] == "ready" and after["readiness"] != "ready":
                 raise CondaError(
                     f"Change would break enabled feature {key}: "
                     + " ".join(after["reasons"])

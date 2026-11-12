@@ -1,6 +1,7 @@
 """Shared feature selection and confirmed configuration writes."""
 
 import sys
+from pathlib import Path
 
 from conda import CondaError
 from conda.base.context import context
@@ -40,7 +41,9 @@ def confirm_and_apply(args, catalog, ctx, plan):
         YamlRawParameter.cache_clear()
         _, _, updated = target(args)
         result["status"] = [
-            catalog[name][1].status(catalog, updated, plan["scope"])
+            catalog[name][1].status(
+                catalog, updated, plan["scope"], path=Path(plan["path"])
+            )
             for name in plan["features"]
         ]
         result["message"] = (

@@ -177,13 +177,25 @@ def test_status_reports_requested_state_and_unmet_prerequisite(setup):
     path.write_text("offline: true\n")
     YamlRawParameter.cache_clear()
     result = catalog[feature.name][1].status(
-        catalog, Context(search_path=(path,)), "user"
+        catalog, Context(search_path=(path,)), "user", path=path
     )
     assert result["requested"] == "enabled"
-    assert result["effective"] == "inactive"
+    assert result["effective"] == "enabled"
+    assert result["runtime"] == "unknown"
     assert result["readiness"] == "blocked"
     assert "missing" in " ".join(result["reasons"])
     assert result["sources"]["offline"] == [str(path)]
+
+
+def test_saved_choice_recognizes_conda_alias(setup):
+    path, _, _ = setup
+    path.write_text("self_update: false\n")
+    YamlRawParameter.cache_clear()
+    feature = Feature("updates", "Updates", "auto_update_conda")
+    result = feature.status(
+        {"updates": ("test", feature)}, Context(search_path=(path,)), "user", path=path
+    )
+    assert result["requested"] == "disabled"
 
 
 def test_final_config_setting_prevents_override(setup, tmp_path):
@@ -282,3 +294,64 @@ def test_missing_user_config_keeps_lower_priority_than_environment(
         operations.plan_change(
             catalog, Context(), path, "user", "enable", "offline-mode"
         )
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"requires": ("offline-mode", "missing")},
+        {"retired": True},
+        {"conda_version": ">=999"},
+    ],
+)
+def test_blocked_enabled_dependent_still_protects_prerequisite(setup, extra):
+    path, catalog, _ = setup
+    dependent = replace(
+        Feature("dependent", "Dependent", "quiet", requires=("offline-mode",)), **extra
+    )
+    catalog[dependent.name] = ("test", dependent)
+    path.write_text("offline: true\nquiet: true\n")
+    YamlRawParameter.cache_clear()
+    ctx = Context(search_path=(path,))
+    before = path.read_bytes()
+    with pytest.raises(CondaError, match="dependent.*requires.*offline-mode"):
+        catalog["offline-mode"][1].disable(catalog, ctx, path, "user")
+    assert path.read_bytes() == before
+    plan = operations.plan_change(
+        catalog, ctx, path, "user", "disable", None, all_features=True
+    )
+    operations.apply_change(plan, ctx)
+    assert Context(search_path=(path,)).offline is False
+    assert Context(search_path=(path,)).quiet is False
+
+
+@pytest.mark.parametrize(
+    "extra", [{"retired": True}, {"requires": ("missing",)}, {"conda_version": ">=999"}]
+)
+def test_blocked_feature_does_not_claim_runtime_suppression(setup, extra):
+    path, catalog, _ = setup
+    provider, feature = catalog["offline-mode"]
+    feature = replace(feature, **extra)
+    catalog[feature.name] = (provider, feature)
+    path.write_text("offline: true\n")
+    YamlRawParameter.cache_clear()
+    result = feature.status(catalog, Context(search_path=(path,)), "user", path=path)
+    assert result["requested"] == "enabled"
+    assert result["effective"] == "enabled"
+    assert result["runtime"] == "unknown"
+    assert result["readiness"] == "blocked"
+
+
+def test_saved_choice_is_distinct_from_effective_override(setup, monkeypatch):
+    path, catalog, _ = setup
+    monkeypatch.setenv("CONDA_OFFLINE", "true")
+    feature = catalog["offline-mode"][1]
+    ctx = Context(search_path=(path,))
+    result = feature.status(catalog, ctx, "user", path=path)
+    assert result["requested"] == "unset"
+    assert result["effective"] == "enabled"
+    path.write_text("offline: false\n")
+    YamlRawParameter.cache_clear()
+    result = feature.status(catalog, Context(search_path=(path,)), "user", path=path)
+    assert result["requested"] == "disabled"
+    assert result["effective"] == "enabled"

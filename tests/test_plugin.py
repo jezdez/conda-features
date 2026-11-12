@@ -74,7 +74,7 @@ def provider_cli(tmp_path):
         CONDARC=str(rc),
     )
 
-    def run(*args, target=None, **overrides):
+    def run(*args, target=None, json_output=True, **overrides):
         return subprocess.run(
             [
                 sys.executable,
@@ -83,7 +83,7 @@ def provider_cli(tmp_path):
                 "feature",
                 *args,
                 *(target or ("--file", str(rc))),
-                "--json",
+                *(("--json",) if json_output else ()),
             ],
             cwd=tmp_path,
             env={**env, **overrides},
@@ -102,7 +102,7 @@ def test_installed_provider_lifecycle_and_idempotence(provider_cli):
     assert result.returncode == 0, result.stderr
     (feature,) = json.loads(result.stdout)["features"]
     assert feature["name"] == "sample"
-    assert feature["requested"] == "disabled"
+    assert feature["requested"] == "unset"
     preview = run("enable", "sample", "--dry-run")
     assert preview.returncode == 0, preview.stdout + preview.stderr
     assert json.loads(preview.stdout)["changes"] == {"plugins.sample_enabled": True}
@@ -113,7 +113,8 @@ def test_installed_provider_lifecycle_and_idempotence(provider_cli):
     assert enabled.returncode == 0, enabled.stdout + enabled.stderr
     status = json.loads(run("explain", "sample").stdout)
     assert status["requested"] == "enabled"
-    assert status["effective"] == "active"
+    assert status["effective"] == "enabled"
+    assert status["runtime"] == "unknown"
     assert status["sources"]["plugins.sample_enabled"] == [str(rc)]
     assert json.loads(run("enable", "sample", "--yes").stdout)["changes"] == {}
     configured = run("configure", "sample", "plugins.sample_limit=4", "--yes")
@@ -125,8 +126,88 @@ def test_installed_provider_lifecycle_and_idempotence(provider_cli):
     assert rc.read_bytes() == before
     disabled = run("disable", "--all", "--yes")
     assert disabled.returncode == 0, disabled.stdout + disabled.stderr
-    assert json.loads(run("explain", "sample").stdout)["effective"] == "inactive"
+    assert json.loads(run("explain", "sample").stdout)["effective"] == "disabled"
     assert "sample_limit: 4" in rc.read_text()
+
+
+@pytest.mark.parametrize(
+    "operation, stored, overriding",
+    [("enable", True, "false"), ("disable", False, "true")],
+)
+@pytest.mark.parametrize("json_output", [False, True])
+def test_noop_override_is_reported_without_writing(
+    provider_cli, operation, stored, overriding, json_output
+):
+    run, rc = provider_cli
+    rc.write_text(f"plugins:\n  sample_enabled: {str(stored).lower()}\n")
+    before = rc.read_bytes()
+    result = run(
+        operation,
+        "sample",
+        "--yes",
+        json_output=json_output,
+        CONDA_PLUGINS_SAMPLE_ENABLED=overriding,
+    )
+    assert result.returncode == 1
+    message = json.loads(result.stdout)["error"] if json_output else result.stderr
+    assert "overridden" in message
+    assert "envvars" in message
+    assert "Change or remove" in message
+    assert "No changes needed" not in result.stdout
+    assert rc.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "operation, stored, overriding",
+    [("enable", "true", "false"), ("disable", "false", "true")],
+)
+def test_noop_override_in_higher_priority_file(
+    provider_cli, empty_env, operation, stored, overriding
+):
+    run, rc = provider_cli
+    destination = empty_env / ".condarc"
+    destination.write_text(f"plugins:\n  sample_enabled: {stored}\n")
+    rc.write_text(f"plugins:\n  sample_enabled: {overriding}\n")
+    before = destination.read_bytes()
+    result = run(operation, "sample", "--yes", target=("--prefix", str(empty_env)))
+    assert result.returncode == 1
+    assert str(rc) in json.loads(result.stdout)["error"]
+    assert destination.read_bytes() == before
+
+
+@pytest.mark.parametrize("extra", ["retired=True", "requires=('missing',)"])
+@pytest.mark.parametrize("json_output", [False, True])
+def test_blocked_provider_reports_configuration_not_runtime(
+    provider_cli, extra, json_output
+):
+    run, rc = provider_cli
+    (rc.parent / "status_provider.py").write_text(
+        "from conda_features.models import Feature\n"
+        f"FEATURES = (Feature('blocked', 'Blocked feature', 'offline', {extra}),)\n"
+    )
+    metadata = rc.parent / "status_provider-1.0.dist-info"
+    metadata.mkdir()
+    (metadata / "METADATA").write_text(
+        "Metadata-Version: 2.1\nName: status-provider\nVersion: 1.0\n"
+    )
+    (metadata / "entry_points.txt").write_text(
+        "[conda_features]\nstatus-provider = status_provider:FEATURES\n"
+    )
+    rc.write_text("offline: true\n")
+    result = run("explain", "blocked", json_output=json_output)
+    assert result.returncode == 0, result.stderr
+    if json_output:
+        data = json.loads(result.stdout)
+        assert data["requested"] == "enabled"
+        assert data["effective"] == "enabled"
+        assert data["runtime"] == "unknown"
+        assert data["readiness"] == "blocked"
+    else:
+        assert "Requested: enabled" in result.stdout
+        assert "Effective setting: enabled" in result.stdout
+        assert "Runtime: unknown" in result.stdout
+        assert "Readiness: blocked" in result.stdout
+        assert "inactive" not in result.stdout
 
 
 def test_provider_environment_override_is_reported(provider_cli):
@@ -175,7 +256,7 @@ def test_environment_scope_writes_only_target_prefix(provider_cli, empty_env):
     assert "sample_enabled: true" in (prefix / ".condarc").read_text()
     assert user_rc.read_bytes() == original
     result = run("explain", "sample", target=("--prefix", str(prefix)))
-    assert json.loads(result.stdout)["effective"] == "active"
+    assert json.loads(result.stdout)["effective"] == "enabled"
 
 
 def test_invalid_prefix_is_not_created(provider_cli, tmp_path):

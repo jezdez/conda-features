@@ -8,6 +8,7 @@ def configure_parser(parser):
 def execute(args, catalog, ctx, path, scope):
     return {
         "features": [
-            feature.status(catalog, ctx, scope) for _, feature in catalog.values()
+            feature.status(catalog, ctx, scope, path=path)
+            for _, feature in catalog.values()
         ]
     }

@@ -8,4 +8,4 @@ def configure_parser(parser):
 
 
 def execute(args, catalog, ctx, path, scope):
-    return select_feature(catalog, args.feature).status(catalog, ctx, scope)
+    return select_feature(catalog, args.feature).status(catalog, ctx, scope, path=path)

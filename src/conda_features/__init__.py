@@ -47,6 +47,9 @@ not intercept provider execution. Declarations must be cheap to import and
 must not access the network, credentials, or files. Installed providers are
 trusted Python code, not sandboxed data. Only expose non-secret settings.
 Required settings check for missing values, not login or service availability.
+Status reports the selected file's saved choice separately from the effective
+boolean setting and readiness. Runtime activity is unknown, even when a setting
+is enabled and a prerequisite is blocked. Providers enforce their own checks.
 
 Enable refuses unmet dependencies instead of implicitly opting into them.
 Disable preserves other settings and installed packages. Changes take effect

@@ -47,6 +47,10 @@ conda feature disable --all --yes
 
 Normal scopes use conda's configuration precedence. `--file` reads only that file plus environment-variable overrides. `explain` reports configuration sources and known prerequisites.
 
+Status separates the choice saved in the selected file (`requested`: `enabled`, `disabled`, or `unset`) from the effective boolean setting after conda applies overrides (`effective`: `enabled` or `disabled`). `readiness` reports declared prerequisites. `runtime` is `unknown` because the plugin does not observe provider execution. An enabled setting can have blocked readiness without its execution being suppressed.
+
+Commands reject an overriding value even when the destination already contains the requested value. The error lists other configuration sources and asks you to change or remove the override. Disabling a prerequisite is refused while any enabled dependent still requires it, including dependents already blocked for another reason.
+
 Mutating commands preview changes with `--dry-run`. Without `--yes`, interactive commands ask for confirmation and noninteractive commands refuse changes. `--json` returns one JSON result. Exit codes are `0` for success or preview, `1` for operation errors, and `2` for argument errors.
 
 Enabling requires compatible versions and platforms, enabled dependencies, and no declared conflicts. Disabling preserves other settings and installed packages. Bulk disable handles dependents before prerequisites where possible. Changes take effect on the next conda invocation.
@@ -76,11 +80,13 @@ from conda.plugins.types import CondaSetting
 @hookimpl
 def conda_settings():
     yield CondaSetting(
-        "sample_enabled", "Enable sample behavior",
+        "sample_enabled",
+        "Enable sample behavior",
         PrimitiveParameter(False, element_type=bool),
     )
     yield CondaSetting(
-        "sample_limit", "Sample limit",
+        "sample_limit",
+        "Sample limit",
         PrimitiveParameter(1, element_type=int),
     )
 ```
@@ -124,9 +130,5 @@ Tests use conda's CLI, context, and environment fixtures. Subprocess tests verif
 
 - No automatic provider installation, authentication, migrations, telemetry, export, or `conda doctor` integration.
 - No dependency scanning across other environments or automatic enabling of prerequisites.
-- Reported activation is derived from settings and metadata. It does not independently verify or suppress provider execution.
-- An overridden setting that already matches the destination file can still produce a misleading "No changes needed" result.
-- Dependency protection currently checks previously ready dependents. A dependent already blocked for another reason can lose a prerequisite.
+- Runtime activity is not observed. Providers must check their own settings and prerequisites before executing optional behavior.
 - Native verification has covered macOS with conda 26.9.4. The lockfile also includes Linux and Windows, but those platforms have not been tested natively.
-
-The override-reporting and dependency-protection issues need fixes before relying on the plugin for enforcing feature policy.
