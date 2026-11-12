@@ -60,9 +60,14 @@ Writes preserve comments and unrelated settings, use atomic file replacement,
 and reject previews whose destination changed. A sidecar lock coordinates this
 plugin's writers, but external editors do not honor it.
 
-This initial implementation has no bundled features. Without a provider,
-``list`` reports an empty catalog. Package installation, authentication,
+Deployment providers can omit enabled_setting and implement enable, disable,
+status, and apply methods. Plans carry public changes and private apply data.
+The CLI confirms the public changes before calling apply. The separate
+conda-features-examples package deploys real PyPI support and shell completion,
+including installation of missing prerequisites. Bulk disable handles boolean
+features and identifies deployments that need individual disable commands.
+
+Without an installed provider, list reports an empty catalog. Authentication,
 cross-environment dependency scanning, telemetry, migrations, export, and
-doctor integration are not implemented. Tests use an isolated sample provider,
-not an integration with the hypothetical PyPI feature in DESIGN.md.
+doctor integration are not implemented.
 """

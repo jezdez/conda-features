@@ -2,7 +2,7 @@
 
 A conda plugin for discovering and configuring optional features supplied by installed providers.
 
-This is an initial implementation. It adds `conda feature` commands and manages existing conda settings. It does not install providers, perform login, or ship a built-in feature catalog. Without a provider, `conda feature list` returns an empty list.
+This is an initial implementation. It adds `conda feature` commands for settings and provider-owned deployments. Without an installed feature provider, `conda feature list` returns an empty list. Deployment providers can install their missing prerequisites after confirmation.
 
 The [design document](DESIGN.md) includes planned work beyond the current implementation.
 
@@ -57,9 +57,9 @@ Enabling requires compatible versions and platforms, enabled dependencies, and n
 
 Configuration writes preserve comments and unrelated settings, reject stale destination files, and use atomic replacement. A sidecar lock coordinates this plugin's writers. Other editors do not honor that lock.
 
-## UX Examples
+## Deployment Providers
 
-The separate `conda-features-examples` package provides `conda-pypi` and `conda-completions` simulations. Install them only in the opt-in examples environment:
+The separate `conda-features-examples` package contains working deployment providers that could move into their upstream projects. Use the opt-in examples environment:
 
 ```sh
 pixi install -e examples
@@ -69,9 +69,20 @@ pixi run -e examples python -m conda feature enable conda-pypi --dry-run
 pixi run -e examples test-examples
 ```
 
-These examples use `plugins.example_*` settings. They do not install real providers, add channels, fetch packages, or modify shell startup files. To try persistent changes without touching your usual configuration, add `--file /path/to/demo.yaml` to each command and use `--yes` after reviewing the preview. The file's parent directory must exist.
+`conda-pypi` installs missing `conda-pypi` and `conda-rattler-solver` packages, selects `solver: rattler`, and appends the `conda-pypi` channel. It supports user and environment configuration scopes. `conda-completion` installs the upstream completion package, generates completion data without fetching repodata, and installs its shell hook. Choose a shell with `configure conda-completion plugins.feature_completion_shell=zsh`. Supported shells are bash, zsh, fish, and powershell.
 
-`conda-pypi` supports user and environment scopes. `conda-completions` supports user scope and a shell setting with `bash`, `zsh`, `fish`, and `powershell` choices. Their maturity values are sample UX data, not claims about those real projects.
+These commands have real side effects. Package installation targets the Python environment running conda, even if `--prefix` selects another configuration environment. Package plans use conda-forge and reject replacement of existing packages in the running installation. Dry-run may fetch repodata and update package-manager caches while solving, but does not install packages or change configuration or shell hooks.
+
+`--file /path/to/demo.yaml` isolates conda settings, not the shell home or package installation. Completion install writes to the current user's shell configuration. Review the displayed shell path before confirming. Use an isolated home and a disposable conda installation for experiments.
+
+Deployment receipts beside the selected configuration file record which changes belong to a provider. Disable restores owned PyPI configuration or removes an unchanged, owned completion hook. Pre-existing hooks and later edits are preserved. Installed packages and completion caches remain. Deploy or disable these providers individually rather than through `disable --all`.
+
+The integration environment supplies the real prerequisites and exercises configuration and shell changes in temporary homes:
+
+```sh
+pixi install -e integration
+pixi run -e integration test-integration
+```
 
 ## Declare a Feature
 
@@ -130,6 +141,8 @@ Providers need `conda-features` as a dependency. Feature IDs and owned setting n
 
 The provider reads `context.plugins.sample_enabled` to control its behavior. This plugin changes settings but does not intercept provider execution. Readiness describes declared checks, not proof that a remote service or login works. Providers must enforce their own runtime requirements.
 
+For deployment rather than a boolean setting, subclass `Feature`, omit `enabled_setting`, and implement `enable`, `disable`, `status`, and `apply`. Enable and disable return plans. Only `changes`, destination, scope, operation, and feature IDs are displayed. The CLI confirms the plan before calling `apply`. Keep credentials and raw configuration out of `changes`. See the PyPI and completion providers in `packages/conda-features-examples` for real implementations.
+
 Declarations should be cheap to import and must not read credentials, contact services, or run setup. Installed providers are trusted Python code, not sandboxed metadata.
 
 ## Development
@@ -146,7 +159,7 @@ Tests use conda's CLI, context, and environment fixtures. Subprocess tests verif
 
 ## Current Limits
 
-- No automatic provider installation, authentication, migrations, telemetry, export, or `conda doctor` integration.
+- No authentication, migrations, telemetry, export, or `conda doctor` integration. Automatic prerequisite installation is provided by the two deployment adapters, not a remote feature catalog.
 - No dependency scanning across other environments or automatic enabling of prerequisites.
 - Runtime activity is not observed. Providers must check their own settings and prerequisites before executing optional behavior.
 - Native verification has covered macOS with conda 26.9.4. The lockfile also includes Linux and Windows, but those platforms have not been tested natively.
