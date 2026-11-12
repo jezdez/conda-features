@@ -36,6 +36,16 @@ lint = "ruff check ."
 format-check = "ruff format --check ."
 type-check = "ty check src"
 
+[tool.pixi.feature.examples.pypi-dependencies]
+conda-features-examples = { path = "packages/conda-features-examples", editable = true }
+
+[tool.pixi.feature.examples.tasks]
+test-examples = "pytest tests/test_examples.py"
+
+[tool.pixi.environments]
+default = { features = [], solve-group = "default" }
+examples = { features = ["examples"], solve-group = "default" }
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

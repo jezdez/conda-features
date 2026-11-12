@@ -57,6 +57,22 @@ Enabling requires compatible versions and platforms, enabled dependencies, and n
 
 Configuration writes preserve comments and unrelated settings, reject stale destination files, and use atomic replacement. A sidecar lock coordinates this plugin's writers. Other editors do not honor that lock.
 
+## UX Examples
+
+The separate `conda-features-examples` package provides `conda-pypi` and `conda-completions` simulations. Install them only in the opt-in examples environment:
+
+```sh
+pixi install -e examples
+pixi run -e examples python -m conda feature list
+pixi run -e examples python -m conda feature explain conda-pypi
+pixi run -e examples python -m conda feature enable conda-pypi --dry-run
+pixi run -e examples test-examples
+```
+
+These examples use `plugins.example_*` settings. They do not install real providers, add channels, fetch packages, or modify shell startup files. To try persistent changes without touching your usual configuration, add `--file /path/to/demo.yaml` to each command and use `--yes` after reviewing the preview. The file's parent directory must exist.
+
+`conda-pypi` supports user and environment scopes. `conda-completions` supports user scope and a shell setting with `bash`, `zsh`, `fish`, and `powershell` choices. Their maturity values are sample UX data, not claims about those real projects.
+
 ## Declare a Feature
 
 A provider registers its settings through conda's `conda_settings` hook and yields `Feature` objects from a dedicated Pluggy hook. Register both provider modules:

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "conda-features-examples"
+version = "0.1.0"
+description = "Simulated conda feature providers for local UX testing"
+requires-python = ">=3.12"
+dependencies = ["conda-features>=0.1.0"]
+
+[project.entry-points.conda]
+conda-features-examples = "conda_features_examples.plugin"
+
+[project.entry-points.conda_features]
+conda-features-examples = "conda_features_examples.features"
