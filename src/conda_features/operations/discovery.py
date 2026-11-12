@@ -23,6 +23,13 @@ def discover() -> Catalog:
             manager.check_pending()
         except Exception as exc:
             raise CondaError(f"Cannot load feature provider {entry.name!r}.") from exc
+        if not any(
+            impl.plugin is provider
+            for impl in manager.hook.conda_features.get_hookimpls()
+        ):
+            raise CondaError(
+                f"Provider {entry.name!r} must declare conda_features with conda_features.hooks.hookimpl."
+            )
         hook = manager.subset_hook_caller(
             "conda_features", remove_plugins=manager.get_plugins() - {provider}
         )

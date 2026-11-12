@@ -354,3 +354,22 @@ def test_invalid_hook_fails_actionably(provider_cli, body):
     assert "bad-hooks" in json.loads(result.stdout)["error"]
     assert "Traceback" not in result.stderr
     assert rc.read_bytes() == original
+
+
+def test_wrong_hook_marker_is_not_silently_ignored(provider_cli):
+    run, rc = provider_cli
+    (rc.parent / "wrong_marker.py").write_text(
+        "from conda.plugins import hookimpl\n@hookimpl\ndef conda_features():\n    return ()\n"
+    )
+    metadata = rc.parent / "wrong_marker-1.0.dist-info"
+    metadata.mkdir()
+    (metadata / "METADATA").write_text(
+        "Metadata-Version: 2.1\nName: wrong-marker\nVersion: 1.0\n"
+    )
+    (metadata / "entry_points.txt").write_text(
+        "[conda_features]\nwrong-marker = wrong_marker\n"
+    )
+    result = run("list")
+    assert result.returncode == 1
+    assert "wrong-marker" in json.loads(result.stdout)["error"]
+    assert "conda_features.hooks.hookimpl" in json.loads(result.stdout)["error"]
