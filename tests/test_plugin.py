@@ -64,7 +64,7 @@ def provider_cli(tmp_path):
         "Metadata-Version: 2.1\nName: sample-provider\nVersion: 1.0\n"
     )
     (metadata / "entry_points.txt").write_text(
-        "[conda]\nsample-provider = fixture_provider\n[conda_features]\nsample-provider = fixture_provider:FEATURES\n"
+        "[conda]\nsample-provider = fixture_provider\n[conda_features]\nsample-provider = fixture_provider\n"
     )
     rc = tmp_path / ".condarc"
     rc.write_text("{}\n")
@@ -183,7 +183,9 @@ def test_blocked_provider_reports_configuration_not_runtime(
     run, rc = provider_cli
     (rc.parent / "status_provider.py").write_text(
         "from conda_features.models import Feature\n"
+        "from conda_features.hooks import hookimpl\n"
         f"FEATURES = (Feature('blocked', 'Blocked feature', 'offline', {extra}),)\n"
+        "@hookimpl\ndef conda_features():\n    yield from FEATURES\n"
     )
     metadata = rc.parent / "status_provider-1.0.dist-info"
     metadata.mkdir()
@@ -191,7 +193,7 @@ def test_blocked_provider_reports_configuration_not_runtime(
         "Metadata-Version: 2.1\nName: status-provider\nVersion: 1.0\n"
     )
     (metadata / "entry_points.txt").write_text(
-        "[conda_features]\nstatus-provider = status_provider:FEATURES\n"
+        "[conda_features]\nstatus-provider = status_provider\n"
     )
     rc.write_text("offline: true\n")
     result = run("explain", "blocked", json_output=json_output)
@@ -275,9 +277,7 @@ def test_unrecognized_config_filename_is_rejected(provider_cli, tmp_path):
     assert not path.exists()
 
 
-@pytest.mark.parametrize(
-    "entry", ["fixture_provider:FEATURES", "fixture_provider:MISSING"]
-)
+@pytest.mark.parametrize("entry", ["fixture_provider", "fixture_provider:MISSING"])
 def test_duplicate_or_broken_provider_fails_cleanly(provider_cli, entry):
     run, rc = provider_cli
     metadata = rc.parent / "other_provider-1.0.dist-info"
@@ -299,7 +299,7 @@ def test_duplicate_or_broken_provider_fails_cleanly(provider_cli, entry):
 @pytest.mark.parametrize(
     "declaration, message",
     [
-        ("[]", "must expose a tuple"),
+        ("42", "Cannot collect features"),
         ("('invalid',)", "Invalid feature declaration"),
     ],
 )
@@ -307,14 +307,17 @@ def test_malformed_provider_declarations_fail_without_mutation(
     provider_cli, declaration, message
 ):
     run, rc = provider_cli
-    (rc.parent / "invalid_provider.py").write_text(f"FEATURES = {declaration}\n")
+    (rc.parent / "invalid_provider.py").write_text(
+        "from conda_features.hooks import hookimpl\n"
+        f"@hookimpl\ndef conda_features():\n    return {declaration}\n"
+    )
     metadata = rc.parent / "invalid_provider-1.0.dist-info"
     metadata.mkdir()
     (metadata / "METADATA").write_text(
         "Metadata-Version: 2.1\nName: invalid-provider\nVersion: 1.0\n"
     )
     (metadata / "entry_points.txt").write_text(
-        "[conda_features]\ninvalid-provider = invalid_provider:FEATURES\n"
+        "[conda_features]\ninvalid-provider = invalid_provider\n"
     )
     before = rc.read_bytes()
     result = run("enable", "sample", "--yes")
@@ -322,3 +325,32 @@ def test_malformed_provider_declarations_fail_without_mutation(
     assert message in json.loads(result.stdout)["error"]
     assert "Traceback" not in result.stderr
     assert rc.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "@hookimpl\ndef conda_features(unexpected):\n    return ()\n",
+        "@hookimpl\ndef unknown_hook():\n    return ()\n",
+        "@hookimpl\ndef conda_features():\n    raise RuntimeError('failed')\n",
+    ],
+)
+def test_invalid_hook_fails_actionably(provider_cli, body):
+    run, rc = provider_cli
+    (rc.parent / "bad_hooks.py").write_text(
+        "from conda_features.hooks import hookimpl\n" + body
+    )
+    metadata = rc.parent / "bad_hooks-1.0.dist-info"
+    metadata.mkdir()
+    (metadata / "METADATA").write_text(
+        "Metadata-Version: 2.1\nName: bad-hooks\nVersion: 1.0\n"
+    )
+    (metadata / "entry_points.txt").write_text(
+        "[conda_features]\nbad-hooks = bad_hooks\n"
+    )
+    original = rc.read_bytes()
+    result = run("list")
+    assert result.returncode == 1
+    assert "bad-hooks" in json.loads(result.stdout)["error"]
+    assert "Traceback" not in result.stderr
+    assert rc.read_bytes() == original

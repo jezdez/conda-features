@@ -59,14 +59,14 @@ Configuration writes preserve comments and unrelated settings, reject stale dest
 
 ## Declare a Feature
 
-A provider registers its settings through conda's `conda_settings` hook and exposes a tuple of `Feature` objects through a separate Python entry point:
+A provider registers its settings through conda's `conda_settings` hook and yields `Feature` objects from a dedicated Pluggy hook. Register both provider modules:
 
 ```toml
 [project.entry-points.conda]
 my-provider = "my_provider.plugin"
 
 [project.entry-points.conda_features]
-my-provider = "my_provider.features:FEATURES"
+my-provider = "my_provider.features"
 ```
 
 In `my_provider/plugin.py`:
@@ -95,17 +95,19 @@ In `my_provider/features.py`:
 
 ```python
 from conda_features.models import Feature
+from conda_features.hooks import hookimpl
 
-FEATURES = (
-    Feature(
+
+@hookimpl
+def conda_features():
+    yield Feature(
         name="sample",
         description="Enable the provider's optional behavior",
         enabled_setting="plugins.sample_enabled",
         settings=("plugins.sample_limit",),
         scopes=("user", "environment"),
         guidance="Use the provider's sample command.",
-    ),
-)
+    )
 ```
 
 Providers need `conda-features` as a dependency. Feature IDs and owned setting names must be unique. The enabled setting must be boolean, and configurable settings must be non-secret scalar values. Declarations can also specify maturity, required settings, dependencies, conflicts, supported conda versions and platforms, retirement, and replacement guidance. See [`Feature`](src/conda_features/models.py) for the fields.

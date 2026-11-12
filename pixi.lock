@@ -4109,4 +4109,5 @@ packages:
   requires_dist:
   - conda>=26.9.4
   - filelock>=3.16
+  - pluggy>=1.5
   requires_python: '>=3.12'

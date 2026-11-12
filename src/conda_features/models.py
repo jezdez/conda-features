@@ -17,8 +17,9 @@ type Catalog = dict[str, tuple[str, Feature]]
 class Feature:
     """A feature backed by an existing boolean conda setting.
 
-    Providers expose a tuple of these through the ``conda_features`` entry-point
-    group. Settings must already be registered with conda. ``settings`` is an
+    Providers yield these from the ``conda_features`` Pluggy hook, registered
+    through the entry-point group of the same name. Settings must already be
+    registered with conda. ``settings`` is an
     allowlist of non-secret scalar settings configurable through this command.
     ``required_settings`` must also appear in that allowlist.
     """

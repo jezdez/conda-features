@@ -8,7 +8,7 @@ def configure_parser(parser: ArgumentParser) -> None:
     from conda.cli.helpers import add_output_and_prompt_options
 
     parser.description = "Manage features declared by installed providers. No provider packages are installed automatically."
-    parser.epilog = "Providers register a tuple of Feature declarations in the conda_features entry-point group. See help(conda_features) in Python for setup and usage."
+    parser.epilog = "Providers register a conda_features hook in the conda_features entry-point group. See help(conda_features) in Python for setup and usage."
     commands = parser.add_subparsers(dest="operation", required=True)
     for name in ("list", "explain", "enable", "disable", "configure"):
         command = commands.add_parser(name)

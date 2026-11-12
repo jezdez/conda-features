@@ -23,24 +23,25 @@ Exit codes are 0 for success or preview, 1 for an operation error, and 2 for
 argument parsing errors. Noninteractive mutations require ``--yes``.
 
 Providers register their settings with conda's ``conda_settings`` hook and
-publish a tuple of ``conda_features.models.Feature`` objects through a Python
-entry point. For example, in their pyproject.toml::
+yield ``conda_features.models.Feature`` objects from a Pluggy hook. Register
+the provider module in their pyproject.toml::
 
     [project.entry-points.conda_features]
-    my-provider = "my_provider.features:FEATURES"
+    my-provider = "my_provider.features"
 
 An example declaration::
 
     from conda_features.models import Feature
+    from conda_features.hooks import hookimpl
 
-    FEATURES = (
-        Feature(
+    @hookimpl
+    def conda_features():
+        yield Feature(
             name="sample",
             description="Enable the provider's optional behavior",
             enabled_setting="plugins.sample_enabled",
             settings=("plugins.sample_limit",),
-        ),
-    )
+        )
 
 The provider reads its boolean setting to control behavior. This plugin does
 not intercept provider execution. Declarations must be cheap to import and

@@ -6,21 +6,32 @@ from importlib.metadata import entry_points
 from conda import CondaError
 from conda.base.context import Context
 from conda.models.version import VersionSpec
+from pluggy import PluginManager
 
+from ..hooks import FeatureSpecs
 from ..models import Catalog, Feature
 
 
 def discover() -> Catalog:
+    manager = PluginManager("conda_features")
+    manager.add_hookspecs(FeatureSpecs)
     features = {}
     for entry in entry_points(group="conda_features"):
         try:
-            declarations = entry.load()
+            provider = entry.load()
+            manager.register(provider, name=entry.name)
+            manager.check_pending()
         except Exception as exc:
             raise CondaError(f"Cannot load feature provider {entry.name!r}.") from exc
-        if not isinstance(declarations, tuple):
+        hook = manager.subset_hook_caller(
+            "conda_features", remove_plugins=manager.get_plugins() - {provider}
+        )
+        try:
+            declarations = [feature for result in hook() for feature in result]
+        except Exception as exc:
             raise CondaError(
-                f"Provider {entry.name!r} must expose a tuple of Feature declarations."
-            )
+                f"Cannot collect features from provider {entry.name!r}."
+            ) from exc
         for feature in declarations:
             if not isinstance(feature, Feature):
                 raise CondaError(f"Invalid feature declaration from {entry.name!r}.")

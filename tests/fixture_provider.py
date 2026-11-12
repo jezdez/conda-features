@@ -4,6 +4,7 @@ from conda.common.configuration import PrimitiveParameter
 from conda.plugins import hookimpl
 from conda.plugins.types import CondaSetting
 
+from conda_features.hooks import hookimpl as feature_hookimpl
 from conda_features.models import Feature
 
 FEATURES = (
@@ -17,6 +18,11 @@ FEATURES = (
         guidance="Use the sample provider.",
     ),
 )
+
+
+@feature_hookimpl
+def conda_features():
+    yield from FEATURES
 
 
 @hookimpl
