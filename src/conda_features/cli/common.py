@@ -8,6 +8,7 @@ from conda.base.context import context
 from conda.common.configuration import YamlRawParameter
 
 from ..models import Catalog, Feature
+from ..operations.configuration import apply_change
 from .targets import target
 
 
@@ -18,8 +19,6 @@ def select_feature(catalog: Catalog, name: str) -> Feature:
 
 
 def confirm_and_apply(args, catalog, ctx, plan):
-    from ..operations.configuration import apply_change
-
     result = {
         key: plan[key]
         for key in ("operation", "features", "scope", "path", "changes")

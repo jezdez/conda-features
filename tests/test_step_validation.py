@@ -6,7 +6,7 @@ from conda.base.context import Context
 from conda.common.serialize import yaml
 
 from conda_features.models import Feature
-from conda_features.operations.discovery import validate_catalog
+from conda_features.operations.validation import validate_catalog
 from conda_features.steps import EnsureChannel, SetSetting
 
 

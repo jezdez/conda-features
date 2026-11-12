@@ -49,6 +49,32 @@ assert 'conda_features.cli.commands' not in sys.modules
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.parametrize(
+    "module",
+    [
+        "conda_features.models",
+        "conda_features.operations.discovery",
+        "conda_features.operations.configuration",
+        "conda_features.operations.validation",
+        "conda_features.steps",
+        "conda_features.steps.runner",
+    ],
+)
+def test_modules_import_independently(module, tmp_path):
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import importlib, sys; importlib.import_module(sys.argv[1])",
+            module,
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 @pytest.fixture
 def provider_cli(tmp_path):
     # Fresh processes need the same source isolation as conda_cli tests.

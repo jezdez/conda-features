@@ -4,7 +4,7 @@ from abc import abstractmethod
 
 from conda import CondaError
 
-from ..operations.configuration import fingerprint
+from ..operations.settings import fingerprint
 from .base import Step, StepPlan
 from .storage import write_text
 

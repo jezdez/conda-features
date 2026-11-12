@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 
 from conda import CondaError
+from conda.cli.condarc import ConfigurationFile
 
 
 def run_conda(arguments, *, env=None):
@@ -54,8 +55,6 @@ def write_receipt(path, data):
 
 
 def write_configuration(path, content, ctx):
-    from conda.cli.condarc import ConfigurationFile
-
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(

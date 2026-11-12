@@ -5,10 +5,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from conda import CondaError, __version__
+from conda.base.context import Context
+from conda.cli.condarc import ConfigurationFile
+from conda.common.configuration import YamlRawParameter
+from conda.models.version import VersionSpec
+
+from .operations.configuration import apply_change, plan_change
+from .operations.settings import setting_context, value
+from .steps import runner
+
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from conda.base.context import Context
 
     from .steps.base import Step
 
@@ -42,38 +50,33 @@ class Feature:
     guidance: str = ""
     steps: tuple[Step, ...] = ()
 
+    def validate_deployment_methods(self) -> None:
+        for method in ("enable", "disable", "status", "apply"):
+            if getattr(type(self), method) is getattr(Feature, method):
+                raise CondaError(
+                    f"Deployment feature {self.name} must implement {method}."
+                )
+
     def apply(self, plan: dict[str, Any], ctx: Context) -> None:
         """Apply an approved configuration plan. Deployment providers override this."""
-        from .operations.configuration import apply_change
-
         if self.steps and plan["operation"] != "configure":
-            from .steps.runner import apply
-
-            return apply(plan, ctx)
+            return runner.apply(plan, ctx)
         apply_change(plan, ctx)
 
     def enable(
         self, catalog: Catalog, ctx: Context, path: Path, scope: str
     ) -> dict[str, Any]:
         """Plan an opt-in. The caller confirms and applies the returned plan."""
-        from .operations.configuration import plan_change
-
         if self.steps:
-            from .steps.runner import plan
-
-            return plan(self, catalog, ctx, path, scope, "enable")
+            return runner.plan(self, catalog, ctx, path, scope, "enable")
         return plan_change(catalog, ctx, path, scope, "enable", self.name)
 
     def disable(
         self, catalog: Catalog, ctx: Context, path: Path, scope: str
     ) -> dict[str, Any]:
         """Plan a dependency-safe opt-out without removing other settings."""
-        from .operations.configuration import plan_change
-
         if self.steps:
-            from .steps.runner import plan
-
-            return plan(self, catalog, ctx, path, scope, "disable")
+            return runner.plan(self, catalog, ctx, path, scope, "disable")
         return plan_change(catalog, ctx, path, scope, "disable", self.name)
 
     def configure(
@@ -85,14 +88,8 @@ class Feature:
         settings: dict[str, str],
     ) -> dict[str, Any]:
         """Plan changes to this feature's declared scalar settings."""
-        from .operations.configuration import plan_change
-
         if self.steps:
-            from conda import CondaError
-
-            from .steps.runner import load
-
-            if load(self, path)[1]:
+            if runner.load(self, path)[1]:
                 raise CondaError(
                     "Disable the deployment before changing its configuration."
                 )
@@ -110,14 +107,6 @@ class Feature:
         path: Path | None = None,
     ) -> dict[str, Any]:
         """Explain the configured choice and known prerequisites."""
-        from conda import __version__
-        from conda.base.context import Context
-        from conda.cli.condarc import ConfigurationFile
-        from conda.common.configuration import YamlRawParameter
-        from conda.models.version import VersionSpec
-
-        from .operations.configuration import setting_context, value
-
         provider, _ = catalog[self.name]
         reasons = []
         if scope not in self.scopes:
@@ -141,9 +130,7 @@ class Feature:
             effective = value(ctx, self.enabled_setting)
         requested = "unknown"
         if self.steps and path is not None:
-            from .steps.runner import load
-
-            requested = "enabled" if load(self, path)[1] else "unset"
+            requested = "enabled" if runner.load(self, path)[1] else "unset"
         elif path is not None:
             assert self.enabled_setting is not None
             saved_config = ConfigurationFile(path=path, context=ctx)

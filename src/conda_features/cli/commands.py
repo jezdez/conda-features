@@ -8,7 +8,8 @@ from importlib import import_module
 from conda import CondaError
 from conda.base.context import context
 
-from ..operations.discovery import discover, validate_catalog
+from ..operations.discovery import discover
+from ..operations.validation import validate_catalog
 from .output import render
 from .targets import target
 

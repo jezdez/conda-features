@@ -114,7 +114,7 @@ def test_completed_step_is_recoverable_when_later_step_fails(tmp_path, monkeypat
 
 
 def test_step_validation_rejects_duplicate_ids(tmp_path):
-    from conda_features.operations.discovery import validate_catalog
+    from conda_features.operations.validation import validate_catalog
     from conda_features.steps import SetSetting
 
     feature = Feature(
@@ -189,7 +189,7 @@ def test_channel_cleanup_restores_absent_local_setting(tmp_path):
 
 @pytest.mark.parametrize("kind", ["channels", "packages", "setting"])
 def test_duplicate_resource_writers_are_rejected(kind):
-    from conda_features.operations.discovery import validate_catalog
+    from conda_features.operations.validation import validate_catalog
     from conda_features.steps import EnsureChannel, InstallPackages, SetSetting
 
     steps = {
@@ -219,7 +219,7 @@ def test_step_conflicts_do_not_recurse(tmp_path):
 
 
 def test_step_setting_owners_are_unique():
-    from conda_features.operations.discovery import validate_catalog
+    from conda_features.operations.validation import validate_catalog
     from conda_features.steps import SetSetting
 
     features = [

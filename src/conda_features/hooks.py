@@ -1,10 +1,15 @@
 """Pluggy interface for installed feature providers."""
 
-from collections.abc import Iterable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from pluggy import HookimplMarker, HookspecMarker
 
-from .models import Feature
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from .models import Feature
 
 hookimpl = HookimplMarker("conda_features")
 hookspec = HookspecMarker("conda_features")

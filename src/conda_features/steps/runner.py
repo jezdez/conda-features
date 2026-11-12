@@ -8,7 +8,7 @@ from conda.cli.condarc import ConfigurationFile
 from conda.common.configuration import YamlRawParameter
 from filelock import FileLock
 
-from ..operations.configuration import fingerprint, prospective_context, value
+from ..operations.settings import fingerprint, prospective_context, value
 from .configuration import EnsureChannel, SetSetting
 from .storage import read_receipt, receipt_path, write_receipt
 

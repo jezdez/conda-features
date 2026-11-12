@@ -11,7 +11,7 @@ from conda import CondaError
 from conda.cli.condarc import ConfigurationFile
 from conda.common.configuration import YamlRawParameter
 
-from ..operations.configuration import prospective_context, value
+from ..operations.settings import prospective_context, value
 from .base import Step, StepPlan
 from .storage import write_configuration
 

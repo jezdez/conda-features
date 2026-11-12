@@ -1,7 +1,5 @@
 """Preview and disable one feature or all features at a scope."""
 
-from .common import confirm_and_apply, select_feature
-
 
 def configure_parser(parser):
     parser.add_argument("feature", nargs="?")
@@ -14,6 +12,7 @@ def configure_parser(parser):
 
 def execute(args, catalog, ctx, path, scope):
     from ..operations.configuration import plan_change
+    from .common import confirm_and_apply, select_feature
 
     if args.all:
         deployments = [

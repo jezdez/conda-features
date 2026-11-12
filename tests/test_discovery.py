@@ -5,7 +5,7 @@ from conda import CondaError
 from conda.base.context import Context
 
 from conda_features.models import Feature
-from conda_features.operations.discovery import validate_catalog
+from conda_features.operations.validation import validate_catalog
 
 
 @pytest.mark.parametrize(

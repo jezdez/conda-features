@@ -2,8 +2,6 @@
 
 from conda import CondaError
 
-from .common import confirm_and_apply, select_feature
-
 
 def configure_parser(parser):
     parser.add_argument("feature")
@@ -11,6 +9,8 @@ def configure_parser(parser):
 
 
 def execute(args, catalog, ctx, path, scope):
+    from .common import confirm_and_apply, select_feature
+
     feature = select_feature(catalog, args.feature)
     settings = {}
     for item in args.settings:
