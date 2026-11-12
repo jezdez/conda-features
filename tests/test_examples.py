@@ -38,7 +38,7 @@ def test_real_pypi_enable_disable_preserves_user_configuration(conda_cli, tmp_pa
 
     before = path.read_bytes()
     plan = run("enable", "conda-pypi", "--dry-run")
-    assert plan["changes"]["solver"] == "rattler"
+    assert plan["changes"]["setting:solver"] == "set solver to rattler"
     assert path.read_bytes() == before
     run("enable", "conda-pypi", "--yes")
     YamlRawParameter.cache_clear()
@@ -87,7 +87,8 @@ def test_real_completion_install_and_uninstall(conda_cli, tmp_path):
 
 def test_exact_transaction_execution_and_stale_guard(monkeypatch):
     from conda import CondaError
-    from conda_features_examples import deployment
+
+    from conda_features.steps import InstallPackages, StepPlan, packages
 
     calls = []
 
@@ -98,26 +99,24 @@ def test_exact_transaction_execution_and_stale_guard(monkeypatch):
         def execute(self):
             calls.append("execute")
 
-    plan = {
-        "arguments": ["conda-completion"],
-        "installed": [],
-        "transaction": Transaction(),
-    }
-    monkeypatch.setattr(
-        deployment, "installed_records", lambda: [("changed", "1", "0")]
+    plan = StepPlan(
+        change="install", data={"installed": [], "transaction": Transaction()}
     )
+    monkeypatch.setattr(packages, "installed_records", lambda: [("changed", "1", "0")])
     with pytest.raises(CondaError, match="changed"):
-        deployment.install_packages(plan)
+        InstallPackages("conda-completion").apply(plan, None, lambda state: None)
     assert calls == []
-    monkeypatch.setattr(deployment, "installed_records", lambda: [])
-    deployment.install_packages(plan)
+    monkeypatch.setattr(packages, "installed_records", lambda: [])
+    InstallPackages("conda-completion").apply(plan, None, lambda state: None)
     assert calls == ["download", "execute"]
 
 
 def test_pypi_retry_after_package_failure(tmp_path, monkeypatch):
     from conda import CondaError
-    from conda_features_examples import pypi
     from conda_features_examples.features import conda_features
+
+    from conda_features.steps import InstallPackages, StepPlan
+    from conda_features.steps.storage import receipt_path
 
     feature = next(item for item in conda_features() if item.name == "conda-pypi")
     catalog = {feature.name: ("test", feature)}
@@ -127,22 +126,22 @@ def test_pypi_retry_after_package_failure(tmp_path, monkeypatch):
     )
     original = path.read_bytes()
     monkeypatch.setattr(
-        pypi, "package_plan", lambda specs: {"arguments": ["install"], "actions": {}}
+        InstallPackages, "plan", lambda *args: StepPlan(change="install")
     )
 
-    def fail(plan):
+    def fail(*args):
         raise CondaError("package failure")
 
-    monkeypatch.setattr(pypi, "install_packages", fail)
+    monkeypatch.setattr(InstallPackages, "apply", fail)
     ctx = Context(search_path=(path,))
     plan = feature.enable(catalog, ctx, path, "user")
     with pytest.raises(CondaError, match="package failure"):
         feature.apply(plan, ctx)
     assert path.read_bytes() == original
-    assert not pypi.receipt_path(path, feature.name).exists()
-    monkeypatch.setattr(pypi, "install_packages", lambda plan: None)
+    assert receipt_path(path, feature.name).exists()
+    monkeypatch.setattr(InstallPackages, "apply", lambda *args: None)
     feature.apply(feature.enable(catalog, ctx, path, "user"), ctx)
-    assert "private-value" not in pypi.receipt_path(path, feature.name).read_text()
+    assert "private-value" not in receipt_path(path, feature.name).read_text()
 
 
 def test_existing_completion_hook_is_preserved(tmp_path):
@@ -168,11 +167,9 @@ def test_existing_completion_hook_is_preserved(tmp_path):
 
 
 def test_pypi_preview_hides_channel_credentials(conda_cli, tmp_path, monkeypatch):
-    from conda_features_examples import pypi
+    from conda_features.steps import InstallPackages, StepPlan
 
-    monkeypatch.setattr(
-        pypi, "package_plan", lambda specs: {"arguments": [], "actions": {}}
-    )
+    monkeypatch.setattr(InstallPackages, "plan", lambda *args: StepPlan())
     path = tmp_path / ".condarc"
     path.write_text(
         "solver: libmamba\nchannels: ['https://user:password@example.test/private']\n"
@@ -190,21 +187,21 @@ def test_pypi_preview_hides_channel_credentials(conda_cli, tmp_path, monkeypatch
     reason="Integration environment required",
 )
 def test_pypi_retry_after_configuration_write_failure(conda_cli, tmp_path, monkeypatch):
-    from conda_features_examples import deployment
+    from conda_features.steps import configuration
 
     path = tmp_path / ".condarc"
     path.write_text("solver: libmamba\nchannels: [conda-forge]\n")
-    original = deployment.write_configuration
+    original = configuration.write_configuration
 
     def fail(*args):
         raise OSError("write failure")
 
-    monkeypatch.setattr(deployment, "write_configuration", fail)
+    monkeypatch.setattr(configuration, "write_configuration", fail)
     _, _, code = conda_cli(
         "feature", "enable", "conda-pypi", "--file", path, "--yes", "--json"
     )
     assert code == 1
-    monkeypatch.setattr(deployment, "write_configuration", original)
+    monkeypatch.setattr(configuration, "write_configuration", original)
     out, err, code = conda_cli(
         "feature", "enable", "conda-pypi", "--file", path, "--yes", "--json"
     )
@@ -231,30 +228,32 @@ def test_completion_recovers_after_final_receipt_failure(
 ):
     from pathlib import Path
 
-    from conda_features_examples import completion
+    from conda.base.context import context
+
+    from conda_features.steps import runner
 
     path = tmp_path / ".condarc"
     path.write_text("plugins:\n  feature_completion_shell: zsh\n")
-    original = completion.write_receipt
+    original = runner.write_receipt
     calls = 0
 
     def fail_second(path, data):
         nonlocal calls
         calls += 1
-        if calls == 2:
+        if calls == 5:
             raise OSError("receipt write failed")
         original(path, data)
 
-    monkeypatch.setattr(completion, "write_receipt", fail_second)
+    monkeypatch.setattr(runner, "write_receipt", fail_second)
     _, _, code = conda_cli(
         "feature", "enable", "conda-completion", "--file", path, "--yes", "--json"
     )
     assert code == 1
     assert "conda-completion" in (Path.home() / ".zshrc").read_text()
     monkeypatch.setattr(
-        completion,
-        "package_plan",
-        lambda specs: (_ for _ in ()).throw(AssertionError("disable must not install")),
+        type(context.plugin_manager),
+        "get_solver_backend",
+        lambda *args: (_ for _ in ()).throw(AssertionError("disable must not solve")),
     )
     out, err, code = conda_cli(
         "feature", "disable", "conda-completion", "--file", path, "--yes", "--json"
@@ -291,7 +290,7 @@ def test_pypi_reenable_refuses_new_ownership(conda_cli, tmp_path):
 def test_real_missing_package_installation(conda_cli, tmp_path):
     from pathlib import Path
 
-    from conda_features_examples.deployment import missing_packages
+    from conda_features.steps.packages import missing_packages
 
     assert missing_packages(("conda-completion==0.3.2",)), (
         "Use a fresh examples environment"
