@@ -52,6 +52,7 @@ def validate_catalog(catalog: Catalog, ctx: Context) -> None:
     from .configuration import setting_context
 
     owners = {}
+    channel_owners = {}
     for name, (_, feature) in catalog.items():
         if name != feature.name or not re.fullmatch(r"[a-z][a-z0-9_-]*", name):
             raise CondaError(f"Invalid feature ID: {name!r}")
@@ -69,7 +70,46 @@ def validate_catalog(catalog: Catalog, ctx: Context) -> None:
             )
         if feature.enabled_setting in feature.settings:
             raise CondaError(f"Use enable/disable to change {name}'s boolean setting.")
-        if feature.enabled_setting is None:
+        step_settings = set()
+        if feature.steps:
+            from ..steps.base import Step
+            from ..steps.configuration import EnsureChannel, SetSetting
+            from ..steps.packages import InstallPackages
+
+            if feature.enabled_setting is not None:
+                raise CondaError(
+                    f"Feature {name} must choose steps or an enabled setting."
+                )
+            ids = set()
+            resources = set()
+            for step in feature.steps:
+                if not isinstance(step, Step):
+                    raise CondaError(f"Invalid deployment step for {name}.")
+                if step.id in ids:
+                    raise CondaError(f"Duplicate step ID: {step.id}")
+                ids.add(step.id)
+                resource = (
+                    "channels"
+                    if isinstance(step, EnsureChannel)
+                    else "packages"
+                    if isinstance(step, InstallPackages)
+                    else None
+                )
+                if resource is not None:
+                    if resource in resources:
+                        raise CondaError(
+                            f"Duplicate resource writer: {resource}. Use one step per resource in a feature."
+                        )
+                    resources.add(resource)
+                if isinstance(step, SetSetting):
+                    step_settings.add(step.key)
+                if isinstance(step, EnsureChannel):
+                    if step.channel in channel_owners:
+                        raise CondaError(
+                            f"Channel {step.channel} is declared more than once ({channel_owners[step.channel]}, {name}). Declare a shared prerequisite feature instead."
+                        )
+                    channel_owners[step.channel] = name
+        elif feature.enabled_setting is None:
             for method in ("enable", "disable", "status", "apply"):
                 if getattr(type(feature), method) is getattr(Feature, method):
                     raise CondaError(
@@ -78,6 +118,7 @@ def validate_catalog(catalog: Catalog, ctx: Context) -> None:
         for key in (
             *((feature.enabled_setting,) if feature.enabled_setting else ()),
             *feature.settings,
+            *sorted(step_settings - set(feature.settings)),
         ):
             if key in owners:
                 raise CondaError(

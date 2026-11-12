@@ -10,12 +10,14 @@ if TYPE_CHECKING:
 
     from conda.base.context import Context
 
+    from .steps.base import Step
+
 type Catalog = dict[str, tuple[str, Feature]]
 
 
 @dataclass(frozen=True)
 class Feature:
-    """A feature backed by an existing boolean conda setting.
+    """A feature backed by a boolean conda setting or deployment steps.
 
     Providers yield these from the ``conda_features`` Pluggy hook, registered
     through the entry-point group of the same name. Settings must already be
@@ -38,11 +40,16 @@ class Feature:
     retired: bool = False
     replacement: str | None = None
     guidance: str = ""
+    steps: tuple[Step, ...] = ()
 
     def apply(self, plan: dict[str, Any], ctx: Context) -> None:
         """Apply an approved configuration plan. Deployment providers override this."""
         from .operations.configuration import apply_change
 
+        if self.steps and plan["operation"] != "configure":
+            from .steps.runner import apply
+
+            return apply(plan, ctx)
         apply_change(plan, ctx)
 
     def enable(
@@ -51,6 +58,10 @@ class Feature:
         """Plan an opt-in. The caller confirms and applies the returned plan."""
         from .operations.configuration import plan_change
 
+        if self.steps:
+            from .steps.runner import plan
+
+            return plan(self, catalog, ctx, path, scope, "enable")
         return plan_change(catalog, ctx, path, scope, "enable", self.name)
 
     def disable(
@@ -59,6 +70,10 @@ class Feature:
         """Plan a dependency-safe opt-out without removing other settings."""
         from .operations.configuration import plan_change
 
+        if self.steps:
+            from .steps.runner import plan
+
+            return plan(self, catalog, ctx, path, scope, "disable")
         return plan_change(catalog, ctx, path, scope, "disable", self.name)
 
     def configure(
@@ -72,6 +87,15 @@ class Feature:
         """Plan changes to this feature's declared scalar settings."""
         from .operations.configuration import plan_change
 
+        if self.steps:
+            from conda import CondaError
+
+            from .steps.runner import load
+
+            if load(self, path)[1]:
+                raise CondaError(
+                    "Disable the deployment before changing its configuration."
+                )
         return plan_change(
             catalog, ctx, path, scope, "configure", self.name, settings=settings
         )
@@ -94,7 +118,6 @@ class Feature:
 
         from .operations.configuration import setting_context, value
 
-        assert self.enabled_setting is not None
         provider, _ = catalog[self.name]
         reasons = []
         if scope not in self.scopes:
@@ -108,9 +131,21 @@ class Feature:
             reasons.append(f"Requires conda {self.conda_version}.")
         if self.platforms and ctx.subdir not in self.platforms:
             reasons.append(f"Unsupported platform: {ctx.subdir}.")
-        effective = value(ctx, self.enabled_setting)
+        step_reasons = [
+            reason for step in self.steps for reason in step.check(ctx, path)
+        ]
+        if self.steps:
+            effective = not step_reasons
+        else:
+            assert self.enabled_setting is not None
+            effective = value(ctx, self.enabled_setting)
         requested = "unknown"
-        if path is not None:
+        if self.steps and path is not None:
+            from .steps.runner import load
+
+            requested = "enabled" if load(self, path)[1] else "unset"
+        elif path is not None:
+            assert self.enabled_setting is not None
             saved_config = ConfigurationFile(path=path, context=ctx)
             saved_ctx = Context(search_path=())
             saved_ctx.raw_data.clear()
@@ -148,16 +183,28 @@ class Feature:
             if (other in self.conflicts or self.name in other_feature.conflicts) and (
                 value(ctx, other_feature.enabled_setting)
                 if other_feature.enabled_setting
+                else not any(step.check(ctx, path) for step in other_feature.steps)
+                if other_feature.steps
                 else other_feature.status(catalog, ctx, scope)["effective"] == "enabled"
             ):
                 reasons.append(f"Feature conflict with {other}.")
         missing = [
             key for key in self.required_settings if value(ctx, key) in (None, "")
         ]
-        readiness = "blocked" if reasons else "setup required" if missing else "ready"
+        readiness = (
+            "blocked"
+            if reasons
+            else "setup required"
+            if missing or step_reasons
+            else "ready"
+        )
+        reasons.extend(step_reasons)
         reasons.extend(f"Configure required setting {key}." for key in missing)
         sources = {}
-        for key in (self.enabled_setting, *self.settings):
+        for key in (
+            *((self.enabled_setting,) if self.enabled_setting else ()),
+            *self.settings,
+        ):
             config, parameter = setting_context(ctx, key)
             sources[key] = [
                 str(source)
