@@ -1,0 +1,80 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: v0.84.2
+          locked: true
+      - name: Check lockfile
+        run: pixi lock --check
+      - name: Lint Python
+        run: pixi run --locked lint
+      - name: Check formatting
+        run: pixi run --locked format-check
+      - name: Check core types
+        run: pixi run --locked type-check
+
+  tests:
+    name: Tests (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-64
+          - os: windows-latest
+            platform: win-64
+          - os: macos-15
+            platform: osx-arm64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: v0.84.2
+          locked: true
+      - name: Test core
+        run: pixi run --locked test
+
+  integration:
+    name: Providers and wheels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: v0.84.2
+          environments: default integration
+          locked: true
+      - name: Test real providers
+        run: pixi run --locked -e integration test-integration
+      - name: Check provider types
+        run: pixi run --locked -e integration ty check packages/conda-features-examples/src
+      - name: Build core wheel
+        run: pixi run --locked python -m hatchling build -t wheel
+      - name: Build examples wheel
+        run: pixi run --locked -e integration python -m pip wheel --no-deps --no-build-isolation packages/conda-features-examples --wheel-dir dist
