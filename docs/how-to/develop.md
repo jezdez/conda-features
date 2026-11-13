@@ -1,6 +1,6 @@
 # Develop and verify the plugin
 
-Use the existing checkout and Pixi environments. The core distribution and real-provider distribution are separate so ordinary tests do not silently install deployment prerequisites into the developer's runtime.
+Use the existing checkout and Pixi environments. The core and real-provider distributions are separate to keep ordinary tests from installing deployment prerequisites into your runtime.
 
 ```sh
 pixi install
@@ -9,7 +9,7 @@ pixi install -e integration
 pixi run -e integration test-integration
 ```
 
-These are contributor setup commands, not the installation path for plugin users. The integration environment preinstalls upstream dependencies to exercise provider code under controlled conditions. For normal installation and use, follow [Install into the conda runtime](install.md).
+The integration environment includes upstream dependencies for testing provider code in a controlled environment. Plugin users should follow [Install into the conda runtime](install.md) instead of the contributor setup commands above.
 
 ## Environments
 
@@ -19,7 +19,7 @@ These are contributor setup commands, not the installation path for plugin users
 | `examples` | Default dependencies plus `conda-features-examples` | Provider discovery and isolated adapter tests |
 | `integration` | Example providers plus real PyPI, Rattler, and completion prerequisites | Real configuration and shell deployment tests |
 
-The lockfile supports `linux-64`, `win-64`, and `osx-arm64`. Core CI uses native runners for those platforms. Provider integration and wheel building run on Linux in CI. Local success does not replace native coverage for platform-specific shell behavior.
+The lockfile supports `linux-64`, `win-64`, and `osx-arm64`. Core CI uses native runners for those platforms. Provider integration tests and wheel builds run on Linux in CI. Test platform-specific shell behavior on the platform it targets, even when local tests pass.
 
 ## Run checks
 
@@ -33,7 +33,7 @@ pixi run -e integration test-integration
 pixi run -e integration ty check packages/conda-features-examples/src
 ```
 
-Core tests intentionally skip provider integration when the examples distribution is absent. Report skips separately. The examples environment may lack upstream packages, so some tests can skip there while running in integration.
+Core tests skip provider integration when the examples distribution is absent. Report skips separately from passing tests. The examples environment may also lack upstream packages, so a test skipped there may run in integration.
 
 Tests use conda's `conda_cli`, `empty_env`, context reset, and context-aware monkeypatch fixtures. Subprocess tests check installed entry points and fresh-process behavior. Isolate homes, configuration search paths, and shell files in both parent and child processes. Setting only `CONDARC` does not exclude every normal conda configuration source.
 
@@ -45,21 +45,21 @@ pixi run -e integration python -m pip wheel --no-deps --no-build-isolation \
   packages/conda-features-examples --wheel-dir dist
 ```
 
-After changing Pixi dependencies or environments, run `pixi lock` and keep `pixi.lock` with the metadata change. Check it with `pixi lock --check`.
+After changing Pixi dependencies or environments, run `pixi lock` and include `pixi.lock` with the metadata change. Check that they agree with `pixi lock --check`.
 
 ## Release notes and immutability
 
-Update the root `CHANGELOG.md` with user-visible changes before a release. Sphinx includes that file as the documentation changelog. Keep limitations and recovery changes explicit, and distinguish published core functionality from the source-only example providers.
+Before a release, add user-visible changes to the root `CHANGELOG.md`, which Sphinx includes as the documentation changelog. Describe limitations and changes to recovery, and make clear which features ship in the published core and which need the source-only example providers.
 
-GitHub release immutability is enabled. The release workflow keeps the GitHub release as a draft until registry publication succeeds and all provenance bundles are attached. Publication then locks the release assets and associated tag. Do not retag a published version or plan to add assets afterward. See [release verification](verify-release.md) for artifact verification commands and the exceptional `0.1.0` recovery history.
+GitHub releases are immutable once published. The workflow keeps each release as a draft until registry publication succeeds and all provenance bundles are attached. Publishing the release locks its assets and tag. Do not retag a published version or plan to add assets afterward. See [release verification](verify-release.md) for artifact verification commands and the exceptional `0.1.0` recovery history.
 
 ## Missing-package installation test
 
-`CONDA_FEATURES_TEST_INSTALL=1` enables a test that really installs completion prerequisites into its current runtime. Run it only in a disposable examples runtime that starts without those prerequisites. The test uses an isolated home but still changes the host environment's installed packages. A regular test run leaves this test skipped.
+`CONDA_FEATURES_TEST_INSTALL=1` enables a test that installs completion prerequisites into the runtime running it. Use only a disposable examples runtime that starts without those prerequisites. The test isolates its home directory but changes the host environment's installed packages. Regular test runs skip it.
 
 ## Coverage and workflow checks
 
-Coverage tooling is not currently a declared project task or dependency. When measuring it, enable subprocess coverage and distinguish core coverage from the real-provider environment. A core-only percentage does not include upstream completion execution in child processes.
+The project currently has no declared coverage task or dependency. To measure coverage, enable it for subprocesses and report core and real-provider coverage separately. A core-only percentage leaves out upstream completion code running in child processes.
 
 The dedicated `Workflow security` GitHub Actions workflow audits workflows with a pinned zizmor action. The test workflow runs Ruff, formatting, ty, native core tests, integration tests, and builds. Both workflows use pinned actions and limited permissions. They do not run the opt-in missing-package test.
 
@@ -71,4 +71,4 @@ Documentation uses Sphinx, MyST Markdown, the conda Sphinx theme, and sphinx-des
 pixi run -e docs docs
 ```
 
-This builds directory-style HTML in `docs/_build/dirhtml`, with warnings treated as errors and unresolved references checked. Verify command examples separately against the installed plugin, use temporary configuration and homes for side effects, and inspect rendered navigation and code blocks at desktop and mobile sizes. A successful HTML build does not execute shell examples. Do not turn a documentation update into deployment against your normal shell profile.
+The build writes directory-style HTML to `docs/_build/dirhtml`, treats warnings as errors, and checks unresolved references. It does not execute shell examples, so verify commands separately against the installed plugin. Use temporary configuration and homes for anything with side effects, never your normal shell profile. Check the rendered navigation and code blocks at desktop and mobile sizes.

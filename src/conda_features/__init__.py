@@ -9,7 +9,7 @@ User commands::
     conda feature explain sample
     conda feature enable sample --dry-run
     conda feature enable sample --yes
-    conda feature configure sample plugins.sample_limit=4 --yes
+    conda feature config sample --set plugins.sample_limit 4 --yes
     conda feature disable sample --yes
     conda feature disable --all --yes
 

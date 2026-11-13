@@ -1,8 +1,8 @@
 # Deploy PyPI support and shell completion
 
-These are working deployment providers, not simulations. Their declarations currently live in the separate `conda-features-examples` distribution. Installing `conda-pypi` or `conda-completion` alone does not imply those upstream packages already publish this feature interface.
+The providers in `conda-features-examples` deploy real PyPI support and shell completion. You need this separate distribution for their feature declarations. Installing `conda-pypi` or `conda-completion` alone does not supply this feature interface.
 
-First [install the plugin and deployment declarations](install.md) in the conda installation you use. Run the commands below with that installation's `conda`, or its host interpreter's `python -m conda`. Enable checks and proposes installing any missing upstream prerequisites. Package installation always targets the Python environment hosting the command, regardless of the configuration destination.
+First [install the plugin and deployment declarations](install.md) in the conda installation you use. Run the commands below with that installation's `conda`, or its host interpreter's `python -m conda`. Enabling a feature checks for missing upstream prerequisites and proposes installing them. Packages always go into the Python environment hosting the command, even when configuration goes elsewhere.
 
 ## PyPI support
 
@@ -20,9 +20,9 @@ conda feature enable conda-pypi --prefix /path/to/environment --dry-run
 conda feature enable conda-pypi --prefix /path/to/environment --yes
 ```
 
-The provider also supports user scope. It does not support installation-wide feature settings. If packages are missing, the preview identifies the host prefix and exact packages. The package step protects the running conda and Python versions and refuses a transaction that would unlink existing packages. If that restriction blocks setup, provision compatible prerequisites separately and preview again.
+You can also use user scope, but not installation-wide feature settings. If packages are missing, the preview lists the host prefix and exact packages to install. The package step preserves the running conda and Python versions and refuses any transaction that would unlink existing packages. If this blocks setup, install compatible prerequisites separately and preview again.
 
-After enabling, check `feature explain` at the same scope. The solver and channel configuration must be effective, not merely written to a lower-priority file. Follow [conda-pypi's upstream usage guide](https://github.com/conda/conda-pypi) for actual package operations. This plugin's readiness check does not run a PyPI installation.
+After enabling, check `feature explain` at the same scope. Make sure the solver and channel configuration take effect. Values in a lower-priority file may be overridden. Follow [conda-pypi's upstream usage guide](https://github.com/conda/conda-pypi) to install packages. This plugin's readiness check does not try a PyPI installation.
 
 Disable at the original scope:
 
@@ -37,18 +37,20 @@ The setting step restores the previous solver only if it owns that change and th
 
 Completion setup supports user scope. Choose the shell before enabling:
 
+These commands use the development version's `config --set`. On release 0.1.0, use `conda feature configure conda-completion plugins.feature_completion_shell=zsh` with the same scope and confirmation flags.
+
 ```sh
-conda feature configure conda-completion \
-  plugins.feature_completion_shell=zsh --user --dry-run
-conda feature configure conda-completion \
-  plugins.feature_completion_shell=zsh --user --yes
+conda feature config conda-completion \
+  --set plugins.feature_completion_shell zsh --user --dry-run
+conda feature config conda-completion \
+  --set plugins.feature_completion_shell zsh --user --yes
 conda feature enable conda-completion --user --dry-run
 conda feature enable conda-completion --user --yes
 ```
 
 The default shell selection is `bash`. Other accepted values are `zsh`, `fish`, and `powershell`. The adapter is pinned to `conda-completion==0.3.2` because it uses that version's hook-rendering and installation behavior.
 
-Setup installs missing prerequisites, generates completion data without repodata, records the expected hook, then calls upstream installation. The dedicated cache is under `~/.cache/conda-features/completion`. Conda environment-variable configuration can still affect subprocesses.
+Setup installs missing prerequisites, generates completion data without repodata, and records the expected hook before calling the upstream installer. It uses a dedicated cache under `~/.cache/conda-features/completion`. Conda configuration set through environment variables can still affect subprocesses.
 
 | Shell | Previewed file |
 | --- | --- |
@@ -58,7 +60,7 @@ Setup installs missing prerequisites, generates completion data without repodata
 | PowerShell on Windows | An existing profile under `Documents/PowerShell` or `Documents/WindowsPowerShell`, otherwise the PowerShell profile path |
 | PowerShell elsewhere | `~/.config/powershell/Microsoft.PowerShell_profile.ps1` |
 
-Read the exact path in the preview. The adapter checks the installed upstream package's path before writing. The generated hook invokes the command name `conda`, so the shell's `conda` must resolve to the installation hosting completion support. Restart the shell after setup.
+Check the exact path in the preview. Before writing, the adapter checks the path chosen by the installed upstream package. The generated hook invokes the command name `conda`, so the shell's `conda` must resolve to the installation hosting completion support. Restart the shell after setup.
 
 Disable before selecting a different shell:
 
@@ -67,10 +69,10 @@ conda feature disable conda-completion --user --dry-run
 conda feature disable conda-completion --user --yes
 ```
 
-Disable removes only a block matching the receipt. It does not need to reinstall a missing completion package. Pre-existing hooks are refused rather than adopted. Later text outside the owned block is preserved. Package and cache removal are separate decisions.
+Disabling removes only a block matching the receipt and preserves text added outside that block. It can do this even if the completion package is missing, without reinstalling it. Setup refuses pre-existing hooks because it does not own them. Remove packages and caches separately if you no longer need them.
 
 ## Experiment without touching your normal setup
 
-`--file` alone is insufficient isolation for completion. It changes where conda settings and receipts go, but the hook still targets the current home directory. Start with `--dry-run` to inspect the exact destinations without changing managed resources. Installing missing prerequisites can still be necessary when you later approve setup.
+`--file` changes where conda settings and receipts go. The completion hook still goes into the current home directory, so this flag alone does not isolate a test installation. Start with `--dry-run` to inspect the exact destinations without changing managed resources. Setup may still need to install missing prerequisites when you approve it.
 
-For a full installation experiment, use a separate conda installation and isolated home. Do not assume that activating a project environment isolates the conda host or shell configuration. Automated tests and their disposable runtime setup belong to the [contributor guide](develop.md).
+For a full installation experiment, use a separate conda installation and isolated home. Activating a project environment does not necessarily isolate the conda host or shell configuration. See the [contributor guide](develop.md) for automated tests and disposable runtime setup.

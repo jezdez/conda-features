@@ -1,6 +1,6 @@
 # Design goals
 
-The design document describes goals that extend beyond implemented behavior. Use the command and provider references for current functionality.
+The design includes future work. Use the command and provider references to check what is implemented today.
 
 ```{include} ../DESIGN.md
 :start-line: 1

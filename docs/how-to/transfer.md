@@ -1,6 +1,6 @@
 # Migrate and transfer feature choices
 
-Migration changes from a provider-declared old feature to its replacement. Export/apply moves saved intent between configurations. Neither operation grants permission to install arbitrary replacement behavior without a preview.
+Use migration to switch from an old feature to the replacement declared by its provider. Use export/apply to move saved choices between configurations. Review the preview before approving changes, including any replacement behavior.
 
 ## Migrate a replaced feature
 
@@ -10,11 +10,11 @@ conda feature migrate OLD --user --dry-run
 conda feature migrate OLD --user --yes
 ```
 
-Replace `OLD` with an installed declaration that names a replacement. Both feature providers must be installed and support the selected scope. The old opt-in must be saved as enabled there. The replacement must be available and ready in the prospective configuration. Enabled dependents that still require the old feature block migration.
+Replace `OLD` with an installed declaration that names a replacement. Both providers must be installed and support the selected scope, where the old opt-in must be saved as enabled. The replacement must be available and ready with the proposed configuration. Migration stops if any enabled dependents still require the old feature.
 
-For boolean-backed features, migration disables the old flag, enables the replacement, and transfers provider-declared settings in one configuration write. Only values saved in the selected file transfer. Inherited values are not copied. Existing mapped destination settings must either match or be reconciled first. Migration explicitly sets the replacement's enabled flag to true, even if it was previously saved as false. Source settings remain untouched for manual cleanup.
+For boolean-backed features, migration disables the old flag, enables the replacement, and transfers provider-declared settings in one configuration write. It copies only values saved in the selected file, leaving inherited values out. If a mapped destination setting already has a different value, reconcile it before migrating. Migration sets the replacement's enabled flag to true even if it was previously saved as false. It leaves source settings in place for you to clean up manually.
 
-The provider's `migration_settings` mapping controls which non-secret settings transfer. Conda validates their types and the combined result. Saved alias spellings are handled explicitly. This command does not migrate generic package or shell deployments. Those need a provider-specific migration path, or explicit replacement enable and old-feature disable commands reviewed separately.
+The provider's `migration_settings` mapping controls which non-secret settings transfer. Conda validates their types and the combined result, and migration handles settings saved under alias spellings. Package and shell deployments need a provider-specific migration path. Otherwise, enable the replacement and disable the old feature in separate commands, reviewing each preview.
 
 ## Clean up a graduated opt-in
 
@@ -24,9 +24,9 @@ conda feature cleanup GRADUATED --user --dry-run
 conda feature cleanup GRADUATED --user --yes
 ```
 
-An optional graduated feature still supports enable and disable. An unconditional graduated feature does not: its functionality no longer depends on its old boolean flag. Cleanup removes the saved obsolete flag, not the functionality. Dependencies and conflicts still account for the unconditional capability.
+You can still enable and disable an optional graduated feature. An unconditional graduated feature no longer depends on its old boolean flag, so you cannot enable or disable it here. Cleanup removes the obsolete saved flag while leaving the functionality in place. Dependencies and conflicts still account for the unconditional capability.
 
-The provider must retain its old feature and setting declarations for cleanup to work. Cleanup does not remove package deployments or shell resources. It preserves unrelated configuration and refuses a changed destination after preview.
+Cleanup requires the provider's old feature and setting declarations. It leaves package deployments, shell resources, and unrelated configuration in place. If the destination changes after preview, cleanup stops.
 
 ## Export saved intent
 
@@ -40,9 +40,9 @@ Export always writes JSON, even without `--json`. To select feature IDs:
 conda feature export FEATURE_A FEATURE_B --file source.yaml > intent.json
 ```
 
-Only saved enabled/disabled choices at that scope are included. Unset choices are omitted. Portable settings require a separate provider allowlist. A setting can be configurable without being portable. Export never includes receipts or runtime observations.
+Export includes only enabled/disabled choices saved at that scope and omits unset choices. Providers must allow portable settings separately, so a configurable setting may not be portable. Receipts and runtime observations are never included.
 
-Keep stdout separate from stderr when saving the document. Export may fail if the configuration cannot be inspected safely or a portable value contains an authenticated URL, unsupported numeric value, or machine-specific absolute path. Do not treat a redirected error or empty file as a valid export.
+Keep stdout separate from stderr when saving the document. Export may fail if it cannot safely inspect the configuration, or if a portable value contains an authenticated URL, unsupported numeric value, or machine-specific absolute path. Check that export succeeded before using the file. A redirected error or empty file is not a valid export.
 
 ## Apply to an explicit destination
 
@@ -51,10 +51,10 @@ conda feature apply intent.json --file destination.yaml --dry-run --json
 conda feature apply intent.json --file destination.yaml --yes --json
 ```
 
-The file's parent directory must exist. Alternatively choose `--user`, `--system`, or `--prefix PATH` explicitly. The source document's scope describes where the choices came from. It does not select or authorize a destination.
+The file's parent directory must exist. You can also choose `--user`, `--system`, or `--prefix PATH` explicitly. The scope recorded in the source document tells you where the choices came from. You still need to choose and authorize the destination.
 
-Apply requires installed declarations with matching provider identities. It rejects unknown features, duplicate entries, unsupported scopes, retired or replaced IDs, incompatible enabled features, and non-portable settings. Migrate old IDs explicitly before exporting new intent rather than changing their names blindly in a manifest.
+Apply requires installed declarations with matching provider identities. It rejects unknown features, duplicate entries, unsupported scopes, retired or replaced IDs, incompatible enabled features, and non-portable settings. Migrate old IDs before exporting new intent. Renaming them in a manifest is not a substitute for migration.
 
-Boolean choices and settings are validated together and written once. Deployment intent is limited to one feature at a time and cannot carry deployment settings into apply. An exported deployment with nonempty settings cannot be applied unchanged. Configure those values explicitly at the destination, then review a single-feature document with its `settings` object changed to `{}` before applying the saved choice. Several deployments exported together need separate selected exports before applying.
+Apply validates boolean choices and settings together, then writes them once. You can apply only one deployment feature at a time, without deployment settings in the document. If an exported deployment includes settings, configure those values explicitly at the destination first. Then change the single-feature document's `settings` object to `{}` and review it before applying the saved choice. If you exported several deployments together, export each one separately before applying.
 
-Intent does not lock package builds, copy ownership, or prove readiness on another machine. Package resolution and authentication are separate. See the [format reference](../reference/intent.md) for the exact schema.
+Transferring intent does not lock package builds, copy ownership, or verify readiness on another machine. You still need to handle package resolution and authentication separately. See the [format reference](../reference/intent.md) for the exact schema.

@@ -1,6 +1,6 @@
 # Manage features and scopes
 
-Start by inspecting the feature at the same scope you intend to change:
+Inspect the feature at the scope you want to change:
 
 ```sh
 conda feature list --user
@@ -21,20 +21,43 @@ Replace `FEATURE` with an ID returned by `list`. Feature IDs identify capabiliti
 
 The scope flags are mutually exclusive. An explicit file must be named `.condarc`, `condarc`, or have a YAML extension, and its parent directory must exist. `--prefix` requires an environment with a `conda-meta` directory. This command does not create environments.
 
-For normal scopes, conda determines configuration precedence. A saved value may lose to another file or an environment variable. `--file` reads the selected file plus environment-variable overrides. It does not automatically make ordinary conda invocations read that file later.
+For normal scopes, conda determines configuration precedence. Another file or an environment variable can override a saved value. `--file` reads the selected file plus environment-variable overrides. Ordinary conda invocations will not automatically read that file later.
 
 ## Enable and configure
 
 ```sh
 conda feature enable FEATURE --prefix /path/to/environment --dry-run
 conda feature enable FEATURE --prefix /path/to/environment --yes
-conda feature configure FEATURE plugins.example_limit=4 \
+conda feature config FEATURE --set plugins.example_limit 4 \
   --prefix /path/to/environment --dry-run
 ```
 
-The example setting name is a placeholder. `explain` lists the provider's actual configurable settings. Configuration accepts distinct `KEY=VALUE` arguments and passes values through conda's type validation. Only declared non-secret scalar settings can be changed this way.
+The example setting name is a placeholder. Use `explain` to find the provider's configurable settings. Use `--set KEY VALUE` for each setting, repeating `--set` to change several together. Conda validates the values' types. You can change only declared non-secret scalar settings this way.
 
-Configure a step-backed deployment before enabling it. An existing receipt prevents changing its configuration until you disable the deployment. This avoids silently changing the meaning of recorded ownership, such as which shell profile belongs to a completion installation.
+The development version uses `config --set`. On release 0.1.0, use `configure FEATURE KEY=VALUE` instead. That syntax remains supported for existing scripts.
+
+To inspect a setting before changing it:
+
+```sh
+conda feature config FEATURE --get --user
+conda feature config FEATURE --show --user
+conda feature config FEATURE --show-sources --user
+conda feature config FEATURE --describe --user
+conda feature config FEATURE --validate --user
+```
+
+`--get` reads saved values. `--show` reads the effective values after defaults and overrides. Pass setting names after either option to limit the result. `--show-sources` includes only the feature's declared settings, not unrelated configuration values.
+
+Remove a saved override to return to inherited configuration or a default:
+
+```sh
+conda feature config FEATURE --remove-key plugins.example_limit --user --dry-run
+conda feature config FEATURE --remove-key plugins.example_limit --user --yes
+```
+
+This does not force a particular effective value. Check `--show` afterward. The planner rejects a removal that would leave an enabled feature without a required setting.
+
+Configure a step-backed deployment before enabling it. Once it has a receipt, you must disable it before changing its configuration. The receipt identifies the resources it owns, such as the shell profile used for completion, so those settings must stay consistent until cleanup finishes.
 
 ## Include prerequisites explicitly
 
@@ -42,9 +65,9 @@ Configure a step-backed deployment before enabling it. An existing receipt preve
 conda feature enable FEATURE --with-dependencies --user --dry-run
 ```
 
-The preview names prerequisite opt-ins. They use the selected scope, and no other scope is changed implicitly. Already-enabled prerequisites can be inherited from user or installation configuration. Cycles and unsupported write scopes are rejected.
+The preview lists prerequisite opt-ins at the selected scope. It will not change other scopes implicitly. Already-enabled prerequisites can be inherited from user or installation configuration. The command rejects cycles and unsupported write scopes.
 
-Combined prerequisite plans support built-in scalar settings and channels. Deploy missing package or custom shell prerequisites individually first, then retry. The command does not claim their readiness merely because a package installation has been planned.
+Combined prerequisite plans support built-in scalar settings and channels. Deploy missing package or custom shell prerequisites individually first, then retry. Planning a package installation does not make those prerequisites ready.
 
 ## Protect other environments
 
@@ -54,9 +77,9 @@ conda feature disable FEATURE --user \
   --check-prefix /path/to/another-env --dry-run
 ```
 
-Shared user and installation changes inspect the current user's registered conda environments and the hosting installation. `--check-prefix` adds an explicit environment without writing to it. The preview lists checked environments. A dependent enabled in a checked environment can block disabling a shared prerequisite or introducing a conflict.
+Before making shared user or installation changes, the command inspects the current user's registered conda environments and the hosting installation. Use `--check-prefix` to check another environment without writing to it. The preview lists checked environments. An enabled dependent in any of them can block disabling a shared prerequisite or introducing a conflict.
 
-This is not a complete machine inventory. Unregistered environments, inaccessible environments, and other users' registries are not scanned. Explicit files do not trigger registry scanning. Other processes can change files, so the command also checks source membership and fingerprints again before application. If the plan is stale, preview again.
+The scan skips unregistered and inaccessible environments and other users' registries. Explicit files do not trigger registry scanning. Before applying changes, the command rechecks which sources are present and their fingerprints in case another process changed them. If the plan is stale, preview again.
 
 ## Disable
 
@@ -66,6 +89,6 @@ conda feature disable FEATURE --user --yes
 conda feature disable --all --user --dry-run
 ```
 
-A boolean feature is disabled by saving false. A step-backed feature reverses owned changes in reverse step order. It does not uninstall prerequisite packages. Existing resources that the feature did not create remain.
+Disabling a boolean feature saves false. Disabling a step-backed feature undoes changes it owns in reverse step order. Prerequisite packages and pre-existing resources remain in place.
 
-`disable --all` handles boolean-backed features only. It reports deployment features requiring individual disable commands. It is not a global emergency switch for every conda plugin. Unconditional graduated features cannot be disabled here. Use [graduation cleanup](transfer.md) to remove their obsolete opt-ins.
+`disable --all` handles boolean-backed features only and lists deployments that need individual disable commands. It cannot disable every conda plugin. Unconditional graduated features cannot be disabled here either. Use [graduation cleanup](transfer.md) to remove their obsolete opt-ins.

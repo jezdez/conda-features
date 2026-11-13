@@ -34,7 +34,7 @@ Lists installed feature declarations and their state. It does not fetch a remote
 conda feature explain FEATURE [SCOPE] [--json]
 ```
 
-Reports the provider identity, settings sources, readiness reasons, configurable settings, and guidance. It includes replacement/graduation metadata when present. The `sources` mapping identifies contributing files or environment variables, not a copy of all their values.
+Reports the provider identity, settings sources, readiness reasons, configurable settings, and guidance. It includes replacement/graduation metadata when present. The `sources` mapping identifies contributing files or environment variables without copying all their values.
 
 ### `diagnose`
 
@@ -54,13 +54,43 @@ conda feature enable FEATURE [--with-dependencies] [SCOPE] [--dry-run | --yes]
 
 Plans an opt-in or deployment. Checks compatibility, prerequisites, conflicts, scope, and prospective configuration. `--with-dependencies` includes supported prerequisite opt-ins at the selected scope. Package/custom prerequisites must be deployed separately. No implicit cross-scope writes occur.
 
-### `configure FEATURE KEY=VALUE ...`
+### `config FEATURE`
 
 ```sh
-conda feature configure FEATURE plugins.limit=4 [SCOPE] [--dry-run | --yes]
+conda feature config FEATURE --set KEY VALUE [--set KEY VALUE ...] [SCOPE] [--dry-run | --yes]
+conda feature config FEATURE --set plugins.limit 4 [SCOPE] [--dry-run | --yes]
+conda feature config FEATURE --get [KEY ...] [SCOPE]
+conda feature config FEATURE --show [KEY ...] [SCOPE]
+conda feature config FEATURE --show-sources [SCOPE]
+conda feature config FEATURE --describe [KEY ...] [SCOPE]
+conda feature config FEATURE --validate [SCOPE]
+conda feature config FEATURE --remove-key KEY [--remove-key KEY ...] [SCOPE] [--dry-run | --yes]
 ```
 
-Changes declared non-secret scalar settings. The example key is illustrative. Each key must appear once. Conda normalizes values and validates their combined configuration. For step-backed deployments, disable before changing settings when an existing receipt is present.
+Changes declared non-secret scalar settings. Repeat `--set` for multiple key/value pairs, using each key only once. The example key is illustrative. Conda normalizes values and validates their combined configuration. For step-backed deployments, disable before changing settings when an existing receipt is present.
+
+Choose one action per invocation. All named keys must be in the feature's declared non-secret settings. Use enable and disable to change its enabled flag.
+
+| Action | Behavior |
+| --- | --- |
+| `--get [KEY ...]` | Read normalized values saved in the selected file. Omit keys to read all declared settings that are saved there. |
+| `--show [KEY ...]` | Read effective values, including defaults and higher-priority overrides. Omit keys to show all declared settings. |
+| `--show-sources` | Show contributing values grouped by source, filtered to the feature's declared settings. |
+| `--describe [KEY ...]` | Show conda's parameter descriptions, types, and defaults. Omit keys for all declared settings. |
+| `--validate` | Validate the combined conda configuration and local feature requirements without writing or solving packages. Unmet requirements produce an error. |
+| `--remove-key KEY` | Remove the saved canonical key and any saved aliases, revealing inherited values or defaults. Repeat for several keys. Preview and confirmation are required as for `--set`. |
+
+Removal fails if the key is not saved, would break an enabled feature's required settings, or belongs to an existing deployment that must be disabled first. Queries do not create files or receipts. JSON queries return `values`, `sources`, `descriptions`, or `valid`, alongside operation and feature details. A validation success does not verify runtime execution.
+
+Conda validation errors omit configuration values from command output because those errors can include private, unrelated settings. Inspect invalid configuration locally. `--show-sources` validates and returns only declared settings from each source.
+
+Sequence operations (`--add`, `--prepend`, `--append`, and `--remove`) are not supported because feature configuration currently declares scalar settings only.
+
+The `config` command is new in the development version. Release 0.1.0 supports setting values through the following syntax, which remains available:
+
+```sh
+conda feature configure FEATURE KEY=VALUE [KEY=VALUE ...] [SCOPE] [--dry-run | --yes]
+```
 
 ### `disable FEATURE` and `disable --all`
 
@@ -77,7 +107,7 @@ Disables one feature or all boolean-backed features at the selected scope. A fea
 conda feature repair FEATURE [SCOPE] [--dry-run | --yes]
 ```
 
-Retries an enabled choice saved at the selected scope using the normal enable plan. It is not an instruction to overwrite user edits, force readiness, or adopt unowned resources. A fresh opt-in without a saved choice must use `enable`.
+Retries an enabled choice saved at the selected scope using the normal enable plan. It preserves user edits and ownership checks and still requires readiness checks to pass. A fresh opt-in without a saved choice must use `enable`.
 
 ### `migrate FEATURE`
 
@@ -111,7 +141,7 @@ Always returns one JSON intent document, including without `--json`. With no IDs
 conda feature apply intent.json --file destination.yaml --dry-run --json
 ```
 
-Requires an explicit `--user`, `--system`, `--prefix`, or `--file`. Reads version-1 intent and validates providers, settings, compatibility, dependencies, and conflicts. Boolean feature changes share one configuration write. Deployment imports are limited to one feature without imported settings. Apply refuses retired/replaced IDs rather than migrating them silently.
+Requires an explicit `--user`, `--system`, `--prefix`, or `--file`. Reads version-1 intent and validates providers, settings, compatibility, dependencies, and conflicts. Boolean feature changes share one configuration write. Deployment imports are limited to one feature without imported settings. Apply refuses retired/replaced IDs, which require explicit migration.
 
 ## Results and exit statuses
 

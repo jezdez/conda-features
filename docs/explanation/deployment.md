@@ -4,7 +4,7 @@
 
 The host is the Python environment running conda and loading its plugins. The target is the configuration destination selected by a command. `--prefix` changes the target configuration, not the host that needs provider code installed.
 
-This matters for the examples. Enabling PyPI support for a project environment can install the solver plugin into the host and write solver/channel settings into the project environment. Shell completion also writes outside `.condarc`, into the user's shell profile. A standalone `--file` is not a sandbox for either operation.
+For example, enabling PyPI support can install the solver plugin into the host while writing solver/channel settings into a project environment. Shell completion also edits the user's shell profile outside `.condarc`. Choosing `--file` changes only the conda configuration destination, so it does not isolate either operation.
 
 ## A feature has several kinds of state
 
@@ -17,7 +17,7 @@ This matters for the examples. Enabling PyPI support for a project environment c
 | `maturity` | The provider's experimental, preview, or stable classification | Whether the user enabled the feature |
 | `lifecycle` | Available, retired, replaced, or graduated metadata | Permission to migrate without confirmation |
 
-An enabled boolean can be blocked by missing prerequisites while the provider still reads true. Providers must enforce their runtime requirements. This plugin does not intercept every provider operation. For a step-backed feature, resources can be ready even with no receipt, because they existed before this tool inspected them. Ready resources do not automatically become owned resources.
+An enabled boolean can still read true when prerequisites are missing. Providers must check their own runtime requirements because this plugin does not intercept their operations. A deployment can also report ready without a receipt if its resources already existed. The plugin does not take ownership of those resources just because it found them.
 
 Conda remains responsible for settings types and precedence. The plugin uses its contexts and validators rather than maintaining a second `.condarc` parser. The planner validates combined prospective settings before mutation, including interactions between individually valid settings.
 
@@ -25,7 +25,7 @@ Conda remains responsible for settings types and precedence. The plugin uses its
 
 `InstallPackages`, `SetSetting`, and `EnsureChannel` cover the common operations. `ManagedBlock` handles ownership and recovery around a provider-generated block in a file. A feature coordinates them in declaration order and disables them in reverse order.
 
-A step plan has public changes, private apply data, and serializable recovery state. Public changes are shown before confirmation. Private data may contain a solved transaction or the old configuration needed during execution and is not returned as the public plan. Recovery state is persisted only as needed for safe retry and cleanup.
+A step plan separates what the user approves from the data needed to apply it. The preview shows proposed changes. Private data holds details such as the solved transaction or previous configuration. The receipt stores only the recovery state needed for retry and cleanup.
 
 Package solving may refresh caches during preview. Application executes the approved transaction rather than running another unconstrained solve. Existing packages, including the running conda and Python, are protected from replacement by the built-in package step. Packages remain installed when a feature is disabled because removing them safely requires more knowledge than this feature's ownership record.
 
@@ -41,10 +41,10 @@ For `settings.yaml` and feature `example`, the receipt is `settings.yaml.example
 
 The runner checkpoints ownership before side effects and marks completion afterward. If an operation succeeds but a final checkpoint fails, a retry can inspect both the resource and saved state. A failed later step does not imply earlier steps were rolled back. Diagnostics can report incomplete checkpoints even when resources already look ready.
 
-Destination fingerprints and sidecar locks reduce accidental overwrites. They do not make package transactions, shell setup, and configuration changes one atomic transaction. External editors do not honor this plugin's locks. On a stale plan or unexpected edit, the safe response is a new preview or manual reconciliation, not forceful cleanup.
+File fingerprints and sidecar locks help detect changes made after preview. Package installation, shell setup, and configuration writes can still succeed or fail separately, and external editors do not honor the locks. If a plan is stale, preview again. If a resource was edited, reconcile the edit before cleanup.
 
 ## Installed providers are trusted code
 
 Pluggy validates registration and hook signatures. It does not sandbox imports or hook execution. Providers must keep declaration hooks and checks free of setup, network access, and credential inspection. Only install providers you trust.
 
-The portable-settings allowlist is also a provider promise. The plugin rejects recognizable credential-bearing URLs and absolute paths, but cannot identify every secret embedded in an arbitrary string. Never expose secrets as ordinary configurable or portable feature settings.
+Providers decide which settings are portable. The plugin rejects recognizable credential-bearing URLs and absolute paths, but cannot find every secret in a string. Keep secrets out of both configurable and portable feature settings.

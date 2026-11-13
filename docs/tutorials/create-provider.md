@@ -1,6 +1,6 @@
 # Build your first feature provider
 
-This guide builds a small provider whose optional greeting is controlled by `conda feature`. It registers its own non-secret settings, declares one boolean feature, and implements `conda provider-demo` to consume those settings. It does not install prerequisites, edit shell files, or use deployment receipts.
+Build a small provider whose optional greeting is controlled by `conda feature`. It registers its own non-secret settings, declares one boolean feature, and implements `conda provider-demo` to consume those settings. It does not install prerequisites, edit shell files, or use deployment receipts.
 
 Use Python 3.12 and conda 26.9.4 for the example. You need an existing conda installation to create a disposable runtime, a local checkout of `conda-features`, and a POSIX shell for the commands below. Pip installs the Python projects only after conda and their dependencies are provisioned. Native Windows command syntax is not covered here.
 
@@ -124,7 +124,7 @@ def conda_subcommands() -> Iterator[CondaSubcommand]:
 
 Conda setting registration uses names without `plugins.`. A feature declaration uses `plugins.demo_enabled` and `plugins.demo_greeting`. The runtime reads the effective values from `ctx.plugins`, after conda applies defaults, the selected file, and environment overrides.
 
-This command deliberately requires `--file` and constructs `Context(search_path=(path,))`. That makes its configuration selection match `conda feature --file` for this demonstration. Ordinary providers usually consume `conda.base.context.context` for the invocation's normal configuration and target. Merely setting `CONDARC` would still allow other files in conda's normal search path.
+The command requires `--file` and constructs `Context(search_path=(path,))` to match the configuration selection of `conda feature --file`. Ordinary providers usually consume `conda.base.context.context` for the invocation's normal configuration and target. Setting `CONDARC` would still allow other files in conda's normal search path.
 
 The optional behavior is in `run`, which chooses the configured greeting only when the flag is true. Its empty-value check also runs there. A `Feature` declaration does not intercept this command or enforce runtime checks for it. The parser uses conda's standard output options once, and JSON output is one complete object.
 
@@ -157,11 +157,11 @@ def conda_features() -> Iterable[Feature]:
     )
 ```
 
-The feature starts at the default maturity, `experimental`. Its boolean setting defaults to false, and its required greeting has the nonempty default `Welcome`. Enable can therefore succeed before an explicit greeting is saved. Required means the effective value cannot be `None` or an empty string when enabling, not that the user must type a value at least once.
+The feature starts at the default maturity, `experimental`. Its boolean setting defaults to false, and its required greeting has the nonempty default `Welcome`. A required setting's effective value cannot be `None` or an empty string when enabling. The default satisfies this check, so enable can succeed before an explicit greeting is saved.
 
 `portable_settings` makes the public greeting eligible for export when it is saved locally. The enabled flag is not in `settings` because users change it through enable and disable. The declaration permits only user scope, which includes an explicit `--file` destination.
 
-Keep this hook cheap. It yields local declarations without contacting a service, reading credentials, or performing setup. Notice that its `hookimpl` import is from `conda_features.hooks`, unlike the conda hook decorator used in `plugin.py`.
+Keep this hook cheap. It yields local declarations without contacting a service, reading credentials, or performing setup. Import its `hookimpl` from `conda_features.hooks`. The hooks in `plugin.py` use conda's decorator.
 
 ## 4. Install in a disposable conda runtime
 
@@ -192,7 +192,7 @@ Install both projects with the new runtime's Python:
   -e "$CONDA_FEATURES_SOURCE" -e "$PROVIDER_SOURCE"
 ```
 
-`--no-deps --no-build-isolation` relies on the dependencies provisioned above. Both editable projects are discovered by that same interpreter. Run conda as `"$DEMO/runtime/bin/python" -m conda` below, rather than accidentally invoking the shell's original conda.
+`--no-deps --no-build-isolation` relies on the dependencies provisioned above. Both editable projects are discovered by that same interpreter. Use `"$DEMO/runtime/bin/python" -m conda` for the remaining commands to run them in the disposable runtime.
 
 Use a fresh configuration filename. Its parent already exists:
 
@@ -225,10 +225,10 @@ The dry-run previews setting `plugins.demo_enabled` to true. It does not write t
 Preview a greeting change, then explicitly approve it:
 
 ```sh
-"$DEMO/runtime/bin/python" -m conda feature configure demo-greeting \
-  plugins.demo_greeting=Goodbye --file "$CONFIG" --dry-run
-"$DEMO/runtime/bin/python" -m conda feature configure demo-greeting \
-  plugins.demo_greeting=Goodbye --file "$CONFIG" --yes
+"$DEMO/runtime/bin/python" -m conda feature config demo-greeting \
+  --set plugins.demo_greeting Goodbye --file "$CONFIG" --dry-run
+"$DEMO/runtime/bin/python" -m conda feature config demo-greeting \
+  --set plugins.demo_greeting Goodbye --file "$CONFIG" --yes
 "$DEMO/runtime/bin/python" -m conda feature enable demo-greeting --file "$CONFIG" --yes
 "$DEMO/runtime/bin/python" -m conda provider-demo --file "$CONFIG" --name Ada --json
 ```
@@ -314,7 +314,7 @@ That adaptation changes the safety requirements. `--file` does not isolate packa
 
 Exercise installed discovery and the complete configure, enable, consume, disable sequence in fresh processes. Verify text and JSON output, empty required settings, environment overrides, dry-run, and cancellation. Use conda's test fixtures and temporary configuration paths instead of reading the developer's normal settings. Add platform-specific tests before claiming support beyond the environments you have exercised.
 
-The shell commands in this guide are a development example, not a release installation channel. Publish and version your distribution through your project's normal process. The local checkout installation does not establish compatibility with all future conda versions allowed by its dependency specifier.
+These commands install a development checkout. Publish and version your distribution through your project's normal process. Testing this checkout does not verify compatibility with future conda versions allowed by its dependency specifier.
 
 ## Remove the disposable runtime
 

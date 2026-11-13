@@ -1,6 +1,6 @@
 # Verify release artifacts
 
-The release workflow follows the same sequence as `conda-skills`: reusable tests, Python builds, provenance, a draft GitHub release, PyPI trusted publishing, conda builds from the published source distribution, conda attestations, Anaconda upload, and finally a public GitHub release.
+The release workflow runs tests, builds and attests the Python packages, then publishes them to PyPI. It builds the conda package from the published source distribution, verifies its attestations, and uploads it to Anaconda. The GitHub release stays a draft until both registries succeed. This follows the `conda-skills` release process.
 
 Only `conda-features` is published. The examples distribution remains source-only. Python artifacts are built once and passed between jobs. The conda recipe downloads the published PyPI sdist and checks the SHA-256 recorded by the Python build.
 
@@ -13,7 +13,7 @@ Each [GitHub release](https://github.com/jezdez/conda-features/releases) include
 - `conda-provenance.sigstore.json`, containing GitHub build provenance for the conda artifact.
 - `conda-publication.sigstore.json`, containing the CEP 27 publication statement for `https://conda.anaconda.org/jezdez`.
 
-GitHub also stores the attestations by artifact digest. PyPI receives its own attestations through the trusted publisher. The conda package is distributed through the [jezdez channel](https://anaconda.org/jezdez/conda-features), not rebuilt from a GitHub-generated source archive.
+GitHub also indexes attestations by artifact digest. PyPI receives its own attestations through trusted publishing. The [jezdez channel](https://anaconda.org/jezdez/conda-features) distributes the conda package built from the published PyPI sdist, rather than a GitHub-generated source archive.
 
 ## Immutable GitHub releases
 
@@ -97,11 +97,11 @@ gh attestation verify conda-features-0.1.0-pyh4616a5c_0.conda \
   --format json
 ```
 
-The verified statement's `predicate.targetChannel` must be `https://conda.anaconda.org/jezdez`. Merely finding a JSON file with that field is not signature verification. Attestations bind artifact bytes to workflow identity and source claims. They do not prove the package is bug-free.
+Check that the verified statement's `predicate.targetChannel` is `https://conda.anaconda.org/jezdez`. Read it from the verification result, not an unsigned JSON file. The signature links the artifact to its workflow and source claims. It says nothing about whether the package has bugs.
 
 ## Future releases
 
-Future releases use the normal pipeline without version-specific recovery branches. Publishing refuses existing release assets or Anaconda versions instead of replacing them. A failed upload can leave a partial release, so inspect which artifacts already exist before retrying. Never move an already published tag as routine recovery.
+Future releases use the same pipeline for every version. Uploads refuse to replace existing release assets or Anaconda versions. If publication fails partway through, check which artifacts exist before retrying. Do not move a published tag to recover a failed upload.
 
 Workflow bundles are retained as Actions artifacts and attached to the GitHub release before it becomes public. This keeps verification instructions independent of Actions artifact retention periods.
 

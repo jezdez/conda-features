@@ -1,10 +1,10 @@
 # conda-features documentation
 
-`conda-features` adds `conda feature` commands for managing optional capabilities supplied by installed providers. A provider describes the feature, its prerequisites, and either a boolean conda setting or a sequence of deployment steps. You can inspect its state, preview changes, enable it, and later disable resources the deployment owns.
+`conda-features` adds commands to inspect, enable, and configure optional features. Installed providers describe each feature's prerequisites and setup. You review the changes before enabling a feature, and the plugin records which resources it can safely remove on disable.
 
 Release 0.1.0 is available on [PyPI](https://pypi.org/project/conda-features/0.1.0/) and the [jezdez Anaconda channel](https://anaconda.org/jezdez/conda-features). See [installation](how-to/install.md) for the correct host environment and the separate source-only examples package.
 
-The core package ships no feature catalog. The separate `conda-features-examples` distribution contains real deployment providers for PyPI support and shell completion. Installing that distribution makes their declarations discoverable. Enabling them can install packages and change configuration or shell files.
+The catalog is empty until you install a provider. The source-only `conda-features-examples` distribution supplies PyPI support and shell completion. Enabling either can install packages and change configuration or shell files.
 
 ## Start here
 
@@ -15,7 +15,7 @@ The core package ships no feature catalog. The separate `conda-features-examples
 :link: tutorials/first-deployment
 :link-type: doc
 
-Preview, enable, and reverse a real deployment in temporary configuration.
+Try PyPI setup with a temporary configuration file, then undo it.
 :::
 
 :::{grid-item-card} Manage features
@@ -29,7 +29,7 @@ Choose scopes, configure options, and protect dependent environments.
 :link: tutorials/create-provider
 :link-type: doc
 
-Publish a complete feature provider using conda settings and Pluggy.
+Build a working provider using conda settings and Pluggy.
 :::
 
 :::{grid-item-card} Command reference
@@ -100,6 +100,8 @@ design
 
 ## Current scope
 
-These pages describe the implementation in this checkout. The [design goals](design.md) also include longer-term work. The repository declares Python 3.12 or newer and conda 26.9.4 or newer, while its test environments pin Python 3.12 and conda 26.9.4. CI is configured for Linux x64, Windows x64, and ARM macOS core tests, with real-provider integration on Linux. Those jobs do not establish compatibility with every newer conda release or every shell on every operating system.
+The command examples use the development version's `config FEATURE --set KEY VALUE` syntax. On release 0.1.0, use `configure FEATURE KEY=VALUE`. The older command remains supported.
 
-Authentication, telemetry, remote feature catalogs, and automatic migration are not implemented. Runtime provider execution is not observed. A ready configuration is not proof that a remote service works or that a provider executed successfully.
+These pages cover the development version. The [design goals](design.md) include future work. Python 3.12 or newer and conda 26.9.4 or newer are required. Tests pin Python 3.12 and conda 26.9.4, with core CI on Linux x64, Windows x64, and ARM macOS and real-provider integration on Linux. Other conda versions and shell/platform combinations may not have been tested.
+
+Authentication, telemetry, remote feature catalogs, and automatic migration are not implemented. Readiness covers configuration and local setup checks. It cannot tell you whether a provider ran successfully or a remote service works.

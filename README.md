@@ -1,8 +1,8 @@
 # conda-features
 
-A conda plugin for discovering and managing optional features supplied by installed providers. Inspect saved choices and readiness, preview changes, deploy prerequisites, and recover interrupted setup without claiming to observe provider execution.
+A conda plugin for finding, enabling, and configuring optional features. It shows what setup will change before you approve it and records those changes so you can retry or undo them later.
 
-The core package ships no feature catalog. The separate `conda-features-examples` distribution provides real PyPI and shell-completion deployments. These can install packages and change configuration or shell files after confirmation.
+Install a provider to add features to the catalog. The source-only `conda-features-examples` package includes PyPI support and shell completion. Enabling these features can install packages, change conda settings, or edit shell files after confirmation.
 
 ## Install and use
 
@@ -34,7 +34,7 @@ conda feature explain conda-pypi
 conda feature enable conda-pypi --user --dry-run
 ```
 
-The first distribution supplies the command. The second supplies real deployment declarations. Enabling a feature can then install missing upstream prerequisites after confirmation. See [Installation](docs/how-to/install.md) for choosing the correct host interpreter and [the tutorial](docs/tutorials/first-deployment.md) for a complete preview, enable, and disable sequence.
+See [Installation](docs/how-to/install.md) if you have more than one conda installation. The [tutorial](docs/tutorials/first-deployment.md) walks through previewing, enabling, and disabling PyPI support in a temporary configuration file.
 
 ## Documentation
 
@@ -44,7 +44,7 @@ The documentation is published to [GitHub Pages](https://jezdez.github.io/conda-
 
 Start with the [documentation index](docs/index.md) or the [first deployment tutorial](docs/tutorials/first-deployment.md), which uses your installed plugin and a temporary configuration file.
 
-The Sphinx documentation follows Diátaxis: tutorials, how-to guides, reference, and explanation. Contributor setup and documentation build commands are in [Development](docs/how-to/develop.md).
+Contributor setup and documentation build commands are in [Development](docs/how-to/develop.md).
 
 - [Manage features and scopes](docs/how-to/manage-features.md)
 - [Verify release provenance and publication attestations](docs/how-to/verify-release.md)
@@ -66,7 +66,10 @@ The [design document](DESIGN.md) includes goals beyond the current implementatio
 conda feature list
 conda feature explain FEATURE
 conda feature enable FEATURE --dry-run
-conda feature configure FEATURE KEY=VALUE --dry-run
+conda feature config FEATURE --set KEY VALUE --dry-run
+conda feature config FEATURE --get
+conda feature config FEATURE --show-sources
+conda feature config FEATURE --remove-key KEY --dry-run
 conda feature disable FEATURE --dry-run
 conda feature diagnose --json
 conda feature repair FEATURE --dry-run
@@ -78,8 +81,10 @@ conda feature apply intent.json --file destination.yaml --dry-run
 
 Use an installed feature ID in place of `FEATURE`. Mutations require confirmation or `--yes`. Deployment dry-runs may solve packages and refresh caches without installing packages or writing managed resources. `--file` isolates conda configuration, not package installation or shell files.
 
+`config --set` is new in the development version. Release 0.1.0 uses `conda feature configure FEATURE KEY=VALUE`, which remains supported.
+
 ## Current limits
 
-Authentication, telemetry, remote catalogs, and automatic migration are not implemented. Environment checks cover explicit targets and the current user's registry, not a complete machine inventory. Runtime activity remains unknown. Generic package and shell migrations need provider-specific handling, and deployment intent is applied one feature at a time.
+There is no authentication integration, telemetry, remote catalog, or automatic migration. Environment checks cover the targets you select and your conda registry. They can miss unregistered environments. Status reports configuration and setup checks, but does not observe provider execution. Package and shell migrations need provider-specific code. Apply deployment intent one feature at a time.
 
-CI is configured for Linux x64, Windows x64, and ARM macOS core tests, with real-provider integration on Linux. See the relevant workflow results for the revision you use rather than assuming every newer conda version or shell has been verified.
+CI runs core tests on Linux x64, Windows x64, and ARM macOS, with real-provider integration on Linux. Other conda versions and shell/platform combinations may not have been tested. Check the workflow results for the revision you use.

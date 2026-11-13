@@ -6,7 +6,7 @@ For a complete small package, see [Build your first provider](../tutorials/creat
 
 ## Registration and trust
 
-The two entry-point groups have different owners:
+Providers can register in two entry-point groups:
 
 ```toml
 [project.entry-points.conda]
@@ -51,7 +51,7 @@ Installed providers are trusted Python code. Loading an entry point executes imp
 
 ## Feature declaration
 
-Import `Feature` from `conda_features.models`. It is a frozen dataclass. Its fields are declaration data, not mutable runtime status.
+Import `Feature` from `conda_features.models`. This frozen dataclass holds the feature declaration. Runtime status is reported separately.
 
 | Field | Type | Default | Meaning and constraints |
 | --- | --- | --- | --- |
@@ -60,7 +60,7 @@ Import `Feature` from `conda_features.models`. It is a frozen dataclass. Its fie
 | `enabled_setting` | `str \| None` | `None` | Registered boolean setting for a settings-backed feature. Use `plugins.NAME` for plugin settings. Mutually exclusive with a nonempty `steps` tuple. |
 | `maturity` | `str` | `"experimental"` | Exactly `"experimental"`, `"preview"`, or `"stable"`. This label does not enable the feature, observe execution, or make functionality unconditional. |
 | `scopes` | `tuple[str, ...]` | `("user",)` | Nonempty selection from `"user"`, `"system"`, and `"environment"`. `--file` is a user-scope destination. |
-| `settings` | `tuple[str, ...]` | `()` | Allowlist of registered, non-secret primitive settings accepted by `configure`. Excludes `enabled_setting`. Sequence and mapping settings are rejected. |
+| `settings` | `tuple[str, ...]` | `()` | Allowlist of registered, non-secret primitive settings accepted by `config --set`. Excludes `enabled_setting`. Sequence and mapping settings are rejected. |
 | `required_settings` | `tuple[str, ...]` | `()` | Subset of `settings`. Effective values of `None` or `""` require setup. `False` and `0` count as configured. |
 | `requires` | `tuple[str, ...]` | `()` | Feature IDs that must be effective and ready. An unconditional prerequisite does not need an enabled obsolete flag, but still needs ready status. Missing dependencies and cycles block enable. |
 | `conflicts` | `tuple[str, ...]` | `()` | Feature IDs that cannot be effective at the same time. A declaration on either feature is enough to detect a conflict. |
@@ -96,7 +96,7 @@ An environment scope chooses a configuration destination. It does not redirect p
 
 ## Boolean settings and deployment steps
 
-A boolean feature supplies `enabled_setting` and leaves `steps` empty. Enable and disable plan writes of `True` and `False`. Disable preserves the feature's other settings. `configure` changes only its declared `settings`. All proposed values are normalized and the combined prospective configuration is validated before mutation.
+A boolean feature supplies `enabled_setting` and leaves `steps` empty. Enable and disable plan writes of `True` and `False`. Disable preserves the feature's other settings. The `config --set` command changes only its declared `settings`. Conda normalizes all proposed values and validates the combined prospective configuration before mutation.
 
 The provider reads the effective flag through conda, typically `context.plugins.sample_enabled`, before executing optional behavior. `conda-features` does not intercept hooks or prevent a provider from running when readiness is blocked. Runtime requirements, including authentication or access to a service, remain the provider's responsibility.
 
@@ -117,7 +117,8 @@ A step-backed feature leaves `enabled_setting=None` and supplies `steps`. Its sa
 ```text
 enable(catalog, ctx, path, scope, *, with_dependencies=False) -> dict
 disable(catalog, ctx, path, scope) -> dict
-configure(catalog, ctx, path, scope, settings: dict[str, str]) -> dict
+configure(catalog, ctx, path, scope, settings: dict[str, str], *, remove_keys=()) -> dict
+config_query(catalog, ctx, path, scope, action, keys=None) -> dict
 repair(catalog, ctx, path, scope) -> dict
 migrate(catalog, ctx, path, scope) -> dict
 cleanup(catalog, ctx, path, scope) -> dict
@@ -126,7 +127,7 @@ status(catalog, ctx, scope, visiting=(), *, path=None) -> dict
 apply(plan, ctx) -> None
 ```
 
-The mutation methods return plans. The CLI obtains confirmation and then calls `apply`. `repair` requires an enabled choice saved at that path and calls the normal enable planner. It does not mean "overwrite the current files." For step-backed features, `configure` refuses while a receipt exists, including an incomplete deployment.
+The mutation methods return plans. The CLI obtains confirmation and then calls `apply`. The `config --set` and `--remove-key` commands use the Python `configure` method. Removal uses `remove_keys` and restores inherited values or defaults rather than writing a replacement. Read actions use `config_query`, which accepts `get`, `show`, `show-sources`, `describe`, and `validate`. It never calls deployment planning. `repair` requires an enabled choice saved at that path and calls the normal enable planner, preserving its ownership and user-edit checks. For step-backed features, `configure` refuses while a receipt exists, including an incomplete deployment.
 
 Prefer composition with steps. A subclass with neither an enabled flag nor steps must override `enable`, `disable`, `status`, and `apply`. Validation checks that those methods are overridden. It does not supply receipt handling or validate the subclass's side effects. Such providers must integrate with the existing CLI plan and output handling themselves and need their own recovery tests.
 
@@ -223,13 +224,13 @@ The runner composes `SetSetting` and `EnsureChannel` plans into a prospective co
 
 ### Apply and checkpoint
 
-`apply` receives the same approved `StepPlan`. It must verify that any provider-specific target or external resource still matches the preview before changing it. Execute the approved action, not a newly selected action or unconstrained package solve.
+`apply` receives the same approved `StepPlan`. It must verify that any provider-specific target or external resource still matches the preview before changing it. Execute only the approved action. Do not select a different action or run another unconstrained package solve.
 
-When a deployment plan is applied, the runner invokes each step's `apply`, including items with `change=None`. A no-op step must therefore return without mutation. On enable, the runner writes initial `state` before calling `apply`. If additional ownership information becomes known during apply, call `checkpoint(new_state)` before its corresponding side effect. The callback replaces this step's saved dictionary, so include existing fields that must be retained. Do not treat it as a partial dictionary update.
+When a deployment plan is applied, the runner invokes each step's `apply`, including items with `change=None`. A no-op step must therefore return without mutation. On enable, the runner writes initial `state` before calling `apply`. If additional ownership information becomes known during apply, call `checkpoint(new_state)` before its corresponding side effect. The callback replaces this step's entire saved dictionary, so include existing fields that must be retained.
 
 For example, an installer that can compute exact generated text only after a package is installed must checkpoint that text before writing the managed file. If installation succeeds and the final receipt write fails, the next invocation must be able to recognize and preserve or remove its own text. A return from a subprocess is not sufficient recovery evidence on its own.
 
-Use `completed` only with awareness that the runner writes `completed=True` after successful enable. A missing completion flag can mean either that no effect occurred or that the effect occurred before the final checkpoint failed. Check the real resource when retrying. Custom receipt fields and any step-specific schema version remain the provider's responsibility.
+The runner writes `completed=True` after successful enable. A missing completion flag can mean either that no effect occurred or that the effect occurred before the final checkpoint failed. Check the real resource when retrying. Custom receipt fields and any step-specific schema version remain the provider's responsibility.
 
 ## ManagedBlock interface
 
@@ -301,7 +302,7 @@ Deployment intent must be applied one feature at a time and cannot carry setting
 
 ## Provider verification
 
-Test the installed entry points in a fresh conda process, not only a direct call to the hook. Check every supported scope, default values, configure normalization, effective overrides, missing prerequisites, and runtime consumption of the flag.
+Test the installed entry points in a fresh conda process. A direct call to the hook does not test discovery. Check every supported scope, default values, configuration normalization, effective overrides, missing prerequisites, and runtime consumption of the flag.
 
 For deployments, cover dry-run and cancelled confirmation, pre-existing resources, stale previews, missing receipts, unsupported versions, user edits, and repeated enable/disable. Inject failures before and after each side effect and receipt checkpoint. Test cleanup after a successful mutation whose completion write failed.
 

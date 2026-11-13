@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add `conda feature config FEATURE --set KEY VALUE`, following `conda config` argument syntax. Repeat `--set` for multiple settings. The released `configure FEATURE KEY=VALUE` command remains supported.
+- Add feature-scoped `--get`, `--show`, `--show-sources`, `--describe`, `--validate`, and confirmed `--remove-key`. Queries expose only declared settings. Removing an override preserves inherited configuration and checks feature requirements.
+- Rewrite the README and documentation in plainer language while retaining setup and recovery guidance.
+
 ## 0.1.0 - 2026-11-13
 
 Initial public release of `conda-features`, available on [PyPI](https://pypi.org/project/conda-features/0.1.0/) and [Anaconda.org](https://anaconda.org/jezdez/conda-features).

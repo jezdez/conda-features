@@ -41,17 +41,17 @@ Export includes values saved in the selected configuration file, normalized thro
 
 Portable values are JSON scalars: null, booleans, integers, finite floats, and strings. Lists and objects are not accepted as setting values. Providers must explicitly list portable names in `Feature.portable_settings`, which must be a subset of `Feature.settings`.
 
-The implementation rejects recognizable URL credentials, query strings, fragments, token-style `/t/` paths, local `file:` URLs, and machine-specific absolute paths. It also rejects a numeric string that normalizes to a non-finite float. These rules are intentionally conservative: a harmless URL query can still be refused. They do not identify arbitrary secrets in free-form strings. Providers must never mark secret settings portable.
+The implementation rejects recognizable URL credentials, query strings, fragments, token-style `/t/` paths, local `file:` URLs, and machine-specific absolute paths. It also rejects a numeric string that normalizes to a non-finite float. Even a harmless URL query can be refused, while arbitrary secrets in free-form strings may go undetected. Providers must never mark secret settings portable.
 
 ## Applying a document
 
-The destination is selected by the command, not by the document. A user-scope export can be applied to a supported environment scope only when you explicitly select that destination and the provider supports it. The source `scope` does not override `--prefix` or choose another user's file.
+Select the destination explicitly in the command. A user-scope export can be applied to an environment scope if the provider supports it. The document's source `scope` does not override `--prefix` or choose another user's file.
 
 Provider identities must match. This prevents a different installed provider from silently taking over the same feature ID during import. It is not a cryptographic signature or a trust guarantee for the provider package.
 
 Retired, replaced, and unconditional graduated features are refused. Review their metadata and migrate explicitly. Enabled features must satisfy compatibility and readiness checks in the prospective configuration. Disabling choices still protect enabled dependents.
 
-Applying several boolean features validates their combined configuration before one write. A deployment entry is applied through its existing enable/disable method and must be the only entry in that document. Deployment entries containing imported settings are refused, even if those settings already match the destination. Configure those values deliberately, then review a single-feature document with `"settings": {}` before applying the saved choice. Such an export cannot round-trip unchanged through apply.
+Applying several boolean features validates their combined configuration before one write. A deployment entry is applied through its existing enable/disable method and must be the only entry in that document. Deployment entries containing imported settings are refused, even if those settings already match the destination. Configure those values explicitly at the destination, then review a single-feature document with `"settings": {}` before applying the saved choice.
 
 ## Automation
 

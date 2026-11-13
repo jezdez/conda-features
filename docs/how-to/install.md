@@ -1,6 +1,6 @@
 # Install into the conda runtime
 
-You need Python 3.12 or newer and conda 26.9.4 or newer. Install `conda-features` into the Python environment that runs conda. Installing it only into a project environment does not make it discoverable by a different conda executable.
+You need Python 3.12 or newer and conda 26.9.4 or newer. Install `conda-features` into the Python environment that runs conda. A different conda executable will not discover a plugin installed only in your project environment.
 
 ## Select the host interpreter
 
@@ -10,7 +10,7 @@ Run this with the Python interpreter belonging to your conda installation:
 python -m conda --version
 ```
 
-If Python cannot import conda, stop and select the host interpreter rather than installing the plugin there. In a conventional conda installation, that interpreter is in base. Activating a project environment can put a different Python on your path while leaving the `conda` shell command connected to the original installation. Installations with a separate managed conda runtime may have a different host from base.
+If Python cannot import conda, switch to the host interpreter before installing the plugin. In a conventional conda installation, that interpreter is in base. Activating a project environment can put a different Python on your path while the `conda` shell command still uses the original installation. A separately managed conda runtime may use a host other than base.
 
 Use an absolute path to the host Python in the commands below if needed. If bare `conda` selects another installation, use `python -m conda` with that same host interpreter for feature commands too. Do not install into a conda runtime managed by another application without following that application's installation guidance.
 
@@ -25,7 +25,7 @@ conda install --name base --override-channels --channel conda-forge \
   --channel jezdez conda-features=0.1.0
 ```
 
-The conda package declares its conda runtime dependency. Review the proposed transaction before accepting. If your conda host is not base, select its actual environment instead. Do not use a project environment merely because it is active.
+The conda package declares its conda runtime dependency. Review the proposed transaction before accepting it. If your conda host is not base, select the environment that hosts it. The active project environment may not be the host.
 
 For pip, select the host interpreter as described above:
 
@@ -33,11 +33,11 @@ For pip, select the host interpreter as described above:
 python -m pip install conda-features==0.1.0
 ```
 
-The PyPI package deliberately does not ask pip to install conda. Conda must already be available in that interpreter. Neither method needs Pixi or a source checkout.
+The PyPI package does not install conda through pip, so conda must already be available in that interpreter. Neither method needs Pixi or a source checkout.
 
 ## Add the repository's deployment examples
 
-The core installs the command but no feature declarations. `conda-features-examples` is intentionally not published to PyPI or Anaconda.org. To try its real PyPI and completion deployments, install it from the matching repository tag into the same runtime. This step requires Git and pip:
+The core installs the command without feature declarations. `conda-features-examples` is available only from source, not from PyPI or Anaconda.org. To try its PyPI and completion deployments, install it from the matching repository tag into the same runtime. You need Git and pip:
 
 ```sh
 python -m pip install "conda-features-examples @ git+https://github.com/jezdez/conda-features.git@0.1.0#subdirectory=packages/conda-features-examples"
@@ -45,7 +45,7 @@ python -m pip install "conda-features-examples @ git+https://github.com/jezdez/c
 
 For a fixed source revision, replace the tag with a reviewed commit SHA. Contributors testing unreleased code can install from a checkout using the [development guide](develop.md).
 
-The examples distribution contains working deployment declarations, despite its name. Installing it does not select a solver, add a channel, install a completion hook, or preinstall all deployment prerequisites. Those changes are proposed by `conda feature enable` and require confirmation.
+The examples make real changes when enabled. Installing the distribution alone does not select a solver, add a channel, install a completion hook, or preinstall all deployment prerequisites. Review and confirm those changes through `conda feature enable`.
 
 ## Check discovery and preview a feature
 
@@ -55,7 +55,7 @@ conda feature explain conda-pypi
 conda feature enable conda-pypi --user --dry-run
 ```
 
-Use the same host's `python -m conda` instead if the bare command points elsewhere. The preview names package changes and their host prefix separately from the target configuration file. Review it before rerunning without `--dry-run`.
+Use the same host's `python -m conda` if the bare command points elsewhere. The preview lists package changes, the host prefix where they will be installed, and the separate target configuration file. Review it before rerunning without `--dry-run`.
 
 If the subcommand is missing, check your interpreter and whether third-party plugins are disabled. If the command exists but the catalog is empty, check that a feature provider is installed in the same runtime. Provider errors name the failing entry point. A feature hook must use `conda_features.hooks.hookimpl`, not conda's hook marker.
 
@@ -63,6 +63,6 @@ Continue with [your first deployment](../tutorials/first-deployment.md) or the [
 
 ## Upgrade without losing recovery information
 
-The current deployment receipt format is version 2. Preserve receipts when upgrading. If a new provider cannot read a receipt or no longer declares its step IDs, restore the prior provider version and disable the deployment before upgrading. The plugin refuses unsupported receipts rather than guessing how to undo them.
+The current deployment receipt format is version 2. Keep receipts when upgrading, since they record the information needed for cleanup. If a new provider cannot read a receipt or no longer declares its step IDs, restore the prior provider version and disable the deployment before upgrading. The plugin refuses to process unsupported receipts.
 
-Removing a provider package does not undo its configuration, shell hook, or other resources. Disable owned deployments first when that is your intent. See [recovery](recover.md) for removed-provider receipts.
+Removing a provider package leaves its configuration, shell hook, and other resources in place. To remove resources it owns, disable its deployments first. See [recovery](recover.md) for receipts left by removed providers.

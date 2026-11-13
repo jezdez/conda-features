@@ -26,9 +26,7 @@ conda feature list --file "$demo/demo.yaml"
 conda feature explain conda-pypi --file "$demo/demo.yaml"
 ```
 
-The catalog contains `conda-pypi` and `conda-completion`. For PyPI support, `requested` is initially `unset`: this file has no deployment receipt. Readiness lists the solver and channel setup still needed, along with any missing package prerequisites.
-
-The completion feature can also appear in this listing. Listing it does not install a hook.
+The catalog contains `conda-pypi` and `conda-completion`. Listing the completion feature does not install a hook. For PyPI support, `requested` is initially `unset`: this file has no deployment receipt. Readiness lists the solver and channel setup still needed, along with any missing package prerequisites.
 
 ## 3. Preview the deployment
 
@@ -39,7 +37,7 @@ conda feature enable conda-pypi \
 
 The result describes setting `solver` to `rattler`, appending `conda-pypi`, and recording the feature choice. The configuration destination is your temporary file. If prerequisites are missing, a package step lists the packages and the host prefix where they will be installed. If replacing existing packages would be necessary, setup refuses and asks you to arrange compatible prerequisites separately.
 
-This is a preview, not a saved approval token. Running enable again constructs and confirms a fresh plan. A missing-package preview can solve and update package caches, but it does not install packages or write managed configuration.
+Running enable again constructs and confirms a fresh plan, so this preview cannot be reused as an approval token. A missing-package preview can solve and update package caches, but it does not install packages or write managed configuration.
 
 ## 4. Apply and inspect
 
@@ -52,7 +50,7 @@ conda feature explain conda-pypi \
 
 The file now selects Rattler and contains both channels. A file named `demo.yaml.conda-pypi.json` records the deployment's ownership and completed steps.
 
-Expected status fields include:
+The full command output includes these status fields:
 
 ```json
 {
@@ -63,7 +61,7 @@ Expected status fields include:
 }
 ```
 
-This is an excerpt, not the complete command output. For a step-backed feature, `effective` reflects the step checks. `runtime` remains unknown because the plugin has not watched a PyPI transaction execute.
+For a step-backed feature, `effective` reflects the step checks. `runtime` remains unknown because the plugin does not observe PyPI transaction execution.
 
 Enable it once more:
 
