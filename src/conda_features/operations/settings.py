@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from argparse import Namespace
 from copy import copy
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ from typing import Any
 from conda import CondaError
 from conda.base.constants import SEARCH_PATH
 from conda.base.context import Context
+from conda.cli.condarc import MISSING, ConfigurationFile
 from conda.common.configuration import YamlRawParameter, custom_expandvars
 from conda.common.serialize import yaml
 
@@ -24,6 +26,26 @@ def setting_context(ctx: Context, key: str):
 def value(ctx: Context, key: str) -> Any:
     config, name = setting_context(ctx, key)
     return getattr(config, name)
+
+
+def saved_keys(config: ConfigurationFile, ctx: Context, key: str) -> list[str]:
+    """Find canonical and alias spellings actually present in one file."""
+    owner, parameter = setting_context(ctx, key)
+    prefix = "plugins." if key.startswith("plugins.") else ""
+    names = [
+        key,
+        *(prefix + alias for alias in owner.describe_parameter(parameter)["aliases"]),
+    ]
+    content = config.content.get("plugins", {}) if prefix else config.content
+    return [name for name in names if name.removeprefix(prefix) in content]
+
+
+def saved_value(config: ConfigurationFile, key: str) -> Any:
+    if key.startswith("plugins."):
+        return config.content.get("plugins", {}).get(
+            key.removeprefix("plugins."), MISSING
+        )
+    return config.content.get(key, MISSING)
 
 
 def prospective_context(ctx: Context, path: Path, content: dict) -> Context:
@@ -67,9 +89,9 @@ def prospective_context(ctx: Context, path: Path, content: dict) -> Context:
             }
     if not inserted:
         data[path] = raw
-    result = Context(search_path=())
+    result = Context(search_path=(), argparse_args=Namespace(**ctx._argparse_args))
     result.raw_data.clear()
-    result.raw_data.update(data)
+    result._set_raw_data(data)
     return result
 
 

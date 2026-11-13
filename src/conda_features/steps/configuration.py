@@ -42,8 +42,12 @@ class SetSetting(Step):
     def scalar(value: Any) -> Any:
         return value.value if isinstance(value, Enum) else value
 
-    def plan(self, ctx, path, operation, saved):
-        config = ConfigurationFile(path=path, context=ctx)
+    def plan(self, ctx, path, operation, saved, *, initial_content=None):
+        config = (
+            ConfigurationFile(path=path, context=ctx)
+            if initial_content is None
+            else ConfigurationFile(content=deepcopy(initial_content), context=ctx)
+        )
         owner, _, subkey = self.key.partition(".")
         content = config.content.get(owner, {}) if subkey else config.content
         key = subkey or owner
@@ -139,8 +143,12 @@ class EnsureChannel(Step):
             json.dumps(list(channels), ensure_ascii=True).encode()
         ).hexdigest()
 
-    def plan(self, ctx, path, operation, saved):
-        config = ConfigurationFile(path=path, context=ctx)
+    def plan(self, ctx, path, operation, saved, *, initial_content=None):
+        config = (
+            ConfigurationFile(path=path, context=ctx)
+            if initial_content is None
+            else ConfigurationFile(content=deepcopy(initial_content), context=ctx)
+        )
         current = deepcopy(config.content.get("channels"))
         if operation == "enable":
             if saved and saved.get("completed") and self.check(ctx, path):

@@ -31,20 +31,30 @@ def plan_change(
     *,
     all_features: bool = False,
     settings: dict[str, str] | None = None,
+    selected_names: list[str] | None = None,
+    initial_content: dict | None = None,
 ) -> dict[str, Any]:
     validate_catalog(catalog, ctx)
-    if all_features:
+    if selected_names is not None:
+        selected = selected_names
+    elif all_features:
         if operation != "disable" or name is not None:
             raise CondaError("Use disable --all without a feature name.")
         selected = [
-            key for key, (_, feature) in catalog.items() if scope in feature.scopes
+            key
+            for key, (_, feature) in catalog.items()
+            if scope in feature.scopes and feature.graduation != "unconditional"
         ]
     elif name in catalog:
         selected = [name]
     else:
         raise CondaError(f"Unknown feature: {name}")
     initial = fingerprint(path)
-    config = ConfigurationFile(path=path, context=ctx)
+    config = (
+        ConfigurationFile(path=path, context=ctx)
+        if initial_content is None
+        else ConfigurationFile(content=initial_content, context=ctx)
+    )
     changes = {}
     expected_values = {}
     ordered = []
@@ -69,6 +79,10 @@ def plan_change(
         ordered.reverse()
     for key in ordered:
         feature = catalog[key][1]
+        if feature.graduation == "unconditional":
+            raise CondaError(
+                f"Feature {key} is unconditional. Use cleanup instead of changing its opt-in."
+            )
         if scope not in feature.scopes:
             raise CondaError(f"Feature {key} does not support scope {scope}.")
         if operation == "configure":
@@ -157,7 +171,10 @@ def apply_change(plan: dict[str, Any], ctx: Context) -> None:
                 )
             config = ConfigurationFile(path=path, context=ctx)
             for key, new_value in plan["changes"].items():
-                config.set_key(key, new_value)
+                if key not in plan.get("remove", ()):
+                    config.set_key(key, new_value)
+            for key in plan.get("remove", ()):
+                config.remove_key(key)
             with tempfile.NamedTemporaryFile(
                 dir=path.parent, prefix=".conda-features-", delete=False
             ) as stream:

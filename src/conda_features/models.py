@@ -11,7 +11,10 @@ from conda.cli.condarc import ConfigurationFile
 from conda.common.configuration import YamlRawParameter
 from conda.models.version import VersionSpec
 
+from .operations import lifecycle
 from .operations.configuration import apply_change, plan_change
+from .operations.dependencies import plan_prerequisites, prerequisite_order
+from .operations.intent import export_feature
 from .operations.settings import setting_context, value
 from .steps import runner
 
@@ -49,6 +52,9 @@ class Feature:
     replacement: str | None = None
     guidance: str = ""
     steps: tuple[Step, ...] = ()
+    migration_settings: tuple[tuple[str, str], ...] = ()
+    graduation: str | None = None
+    portable_settings: tuple[str, ...] = ()
 
     def validate_deployment_methods(self) -> None:
         for method in ("enable", "disable", "status", "apply"):
@@ -64,9 +70,39 @@ class Feature:
         apply_change(plan, ctx)
 
     def enable(
-        self, catalog: Catalog, ctx: Context, path: Path, scope: str
+        self,
+        catalog: Catalog,
+        ctx: Context,
+        path: Path,
+        scope: str,
+        *,
+        with_dependencies: bool = False,
     ) -> dict[str, Any]:
         """Plan an opt-in. The caller confirms and applies the returned plan."""
+        if self.graduation == "unconditional":
+            raise CondaError(
+                "This feature is now unconditional. Use cleanup to remove its obsolete opt-in."
+            )
+        if with_dependencies:
+            selected = prerequisite_order(catalog, ctx, scope, self.name)
+            if len(selected) > 1 and any(
+                type(catalog[name][1]).enable is not Feature.enable for name in selected
+            ):
+                raise CondaError(
+                    "Enable features with custom deployment methods separately before retrying."
+                )
+            if all(catalog[name][1].enabled_setting for name in selected):
+                return plan_change(
+                    catalog,
+                    ctx,
+                    path,
+                    scope,
+                    "enable",
+                    self.name,
+                    selected_names=selected,
+                )
+            if len(selected) > 1:
+                return plan_prerequisites(self, catalog, ctx, path, scope)
         if self.steps:
             return runner.plan(self, catalog, ctx, path, scope, "enable")
         return plan_change(catalog, ctx, path, scope, "enable", self.name)
@@ -75,6 +111,10 @@ class Feature:
         self, catalog: Catalog, ctx: Context, path: Path, scope: str
     ) -> dict[str, Any]:
         """Plan a dependency-safe opt-out without removing other settings."""
+        if self.graduation == "unconditional":
+            raise CondaError(
+                "This feature is now unconditional and cannot be disabled here. Use cleanup to remove the obsolete opt-in."
+            )
         if self.steps:
             return runner.plan(self, catalog, ctx, path, scope, "disable")
         return plan_change(catalog, ctx, path, scope, "disable", self.name)
@@ -97,11 +137,37 @@ class Feature:
             catalog, ctx, path, scope, "configure", self.name, settings=settings
         )
 
+    def repair(
+        self, catalog: Catalog, ctx: Context, path: Path, scope: str
+    ) -> dict[str, Any]:
+        """Retry saved intent without adopting or overwriting unrelated resources."""
+        status = self.status(catalog, ctx, None, path=path)
+        if status["requested"] != "enabled":
+            raise CondaError(
+                "No enabled choice is saved at this scope. Use enable explicitly instead of repair."
+            )
+        return self.enable(catalog, ctx, path, scope)
+
+    def migrate(
+        self, catalog: Catalog, ctx: Context, path: Path, scope: str
+    ) -> dict[str, Any]:
+        return lifecycle.migrate(self, catalog, ctx, path, scope)
+
+    def export_intent(
+        self, catalog: Catalog, ctx: Context, path: Path, scope: str
+    ) -> dict[str, Any] | None:
+        return export_feature(self, catalog, ctx, path, scope)
+
+    def cleanup(
+        self, catalog: Catalog, ctx: Context, path: Path, scope: str
+    ) -> dict[str, Any]:
+        return lifecycle.cleanup(self, catalog, ctx, path, scope)
+
     def status(
         self,
         catalog: Catalog,
         ctx: Context,
-        scope: str,
+        scope: str | None,
         visiting: tuple[str, ...] = (),
         *,
         path: Path | None = None,
@@ -109,7 +175,7 @@ class Feature:
         """Explain the configured choice and known prerequisites."""
         provider, _ = catalog[self.name]
         reasons = []
-        if scope not in self.scopes:
+        if scope is not None and scope not in self.scopes:
             reasons.append(f"Unsupported scope: {scope}.")
         if self.retired:
             reasons.append(
@@ -158,17 +224,19 @@ class Feature:
                     reasons.append(f"Missing dependency: {dependency}.")
                 else:
                     dependency_status = catalog[dependency][1].status(
-                        catalog, ctx, scope, (*visiting, self.name)
+                        catalog, ctx, None, (*visiting, self.name)
                     )
                     if (
                         dependency_status["effective"] != "enabled"
-                        or dependency_status["readiness"] != "ready"
-                    ):
+                        and catalog[dependency][1].graduation != "unconditional"
+                    ) or dependency_status["readiness"] != "ready":
                         reasons.append(f"Requires enabled feature {dependency}.")
                         reasons.extend(dependency_status["reasons"])
         for other, (_, other_feature) in catalog.items():
             if (other in self.conflicts or self.name in other_feature.conflicts) and (
-                value(ctx, other_feature.enabled_setting)
+                True
+                if other_feature.graduation == "unconditional"
+                else value(ctx, other_feature.enabled_setting)
                 if other_feature.enabled_setting
                 else not any(step.check(ctx, path) for step in other_feature.steps)
                 if other_feature.steps
@@ -203,6 +271,15 @@ class Feature:
             "provider": provider,
             "description": self.description,
             "maturity": self.maturity,
+            "lifecycle": "graduated"
+            if self.graduation
+            else "replaced"
+            if self.replacement
+            else "retired"
+            if self.retired
+            else "available",
+            "graduation": self.graduation,
+            "replacement": self.replacement,
             "requested": requested,
             "effective": "enabled" if effective else "disabled",
             "runtime": "unknown",
