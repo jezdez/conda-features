@@ -8,3 +8,4 @@ myst_enable_extensions = ["colon_fence"]
 myst_heading_anchors = 3
 exclude_patterns = ["_build"]
 html_title = "conda-features documentation"
+html_baseurl = "https://jezdez.github.io/conda-features/"

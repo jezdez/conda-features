@@ -26,6 +26,8 @@ Install the plugin into the Python environment running conda, not just the envir
 
 ## Documentation
 
+The documentation is published to [GitHub Pages](https://jezdez.github.io/conda-features/) from `main`. Pull requests build the site without deploying it.
+
 Start with the [documentation index](docs/index.md) or the [first deployment tutorial](docs/tutorials/first-deployment.md), which uses a temporary configuration file and preinstalled integration prerequisites.
 
 Build the Sphinx site with `pixi run -e docs docs`. The MyST pages use the conda theme and follow Diátaxis: tutorials, how-to guides, reference, and explanation. HTML is written to `docs/_build/dirhtml`.
