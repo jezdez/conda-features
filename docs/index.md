@@ -68,6 +68,7 @@ how-to/develop
 reference/cli
 reference/providers
 reference/intent
+changelog
 ```
 
 ```{toctree}

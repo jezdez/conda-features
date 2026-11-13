@@ -38,6 +38,8 @@ The first distribution supplies the command. The second supplies real deployment
 
 ## Documentation
 
+See the [changelog](CHANGELOG.md) for released features and publication history.
+
 The documentation is published to [GitHub Pages](https://jezdez.github.io/conda-features/) from `main`. Pull requests build the site without deploying it.
 
 Start with the [documentation index](docs/index.md) or the [first deployment tutorial](docs/tutorials/first-deployment.md), which uses your installed plugin and a temporary configuration file.

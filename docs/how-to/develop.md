@@ -47,6 +47,12 @@ pixi run -e integration python -m pip wheel --no-deps --no-build-isolation \
 
 After changing Pixi dependencies or environments, run `pixi lock` and keep `pixi.lock` with the metadata change. Check it with `pixi lock --check`.
 
+## Release notes and immutability
+
+Update the root `CHANGELOG.md` with user-visible changes before a release. Sphinx includes that file as the documentation changelog. Keep limitations and recovery changes explicit, and distinguish published core functionality from the source-only example providers.
+
+GitHub release immutability is enabled. The release workflow keeps the GitHub release as a draft until registry publication succeeds and all provenance bundles are attached. Publication then locks the release assets and associated tag. Do not retag a published version or plan to add assets afterward. See [release verification](verify-release.md) for artifact verification commands and the exceptional `0.1.0` recovery history.
+
 ## Missing-package installation test
 
 `CONDA_FEATURES_TEST_INSTALL=1` enables a test that really installs completion prerequisites into its current runtime. Run it only in a disposable examples runtime that starts without those prerequisites. The test uses an isolated home but still changes the host environment's installed packages. A regular test run leaves this test skipped.
