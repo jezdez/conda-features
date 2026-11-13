@@ -46,7 +46,7 @@ conda install --name base --solver rattler --override-channels \
 
 The channel-qualified package specification selects the PyPI wheel rather than the native conda package. The solver and channels apply to this command only, so these instructions do not change your persistent solver or channel settings. Review both transactions before accepting them. Use the actual host environment instead of base when your installation differs.
 
-This setup must work before installing `conda-features` through PyPI. You cannot use its own feature command to bootstrap it. See [conda-pypi's usage guide](https://github.com/conda/conda-pypi#using-conda-pypi) for wheel-channel support. Neither released-package route needs pip, Pixi, or a source checkout.
+Install these prerequisites before using the PyPI route, since `conda-features` cannot run its own setup until it is installed. See [conda-pypi's usage guide](https://github.com/conda/conda-pypi#using-conda-pypi) for wheel-channel support. Neither released-package route needs pip, Pixi, or a source checkout.
 
 ## Add the repository's deployment examples
 

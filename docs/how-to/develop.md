@@ -9,7 +9,7 @@ pixi install -e integration
 pixi run -e integration test-integration
 ```
 
-The integration environment includes upstream dependencies for testing provider code in a controlled environment. Plugin users should follow [Install into the conda runtime](install.md) instead of the contributor setup commands above.
+The integration environment includes the upstream packages needed to test provider code. To install and use the plugin without working on its source, follow [Install into the conda runtime](install.md).
 
 ## Environments
 
@@ -76,7 +76,7 @@ The build writes directory-style HTML to `docs/_build/dirhtml`, treats warnings 
 
 ## Record terminal demos
 
-Install [JetBrains Mono](https://www.jetbrains.com/lp/mono/) locally before recording. The recording tools come from conda-forge, but the font is a separate prerequisite. VHS also needs a working Chromium browser and may download one on its first run. Native Windows recording is not configured.
+Install [JetBrains Mono](https://www.jetbrains.com/lp/mono/) before recording. Pixi installs the recording tools from conda-forge, but not the font. VHS also needs Chromium and may download it on its first run. Recording is not configured for native Windows.
 
 ```sh
 pixi install -e demos
@@ -87,8 +87,8 @@ pixi run -e demos demos configuration
 
 Run these commands from the checkout root. With no name, the task records both `demos/feature-management.gif` and `demos/configuration.gif`. Pass `feature-management` or `configuration` to regenerate one. Each tape sources `demos/_settings.tape`, which uses the conda-workspaces font, dimensions, theme, and green prompt.
 
-The tapes execute the installed development plugin and source-only example providers. Prerequisite packages are installed by Pixi before recording. Hidden preparation refuses to continue if any are missing, so the GIFs do not include package installation. The feature-management recording previews, enables, and disables PyPI support in `~/demo/.condarc`. The configuration recording reads and changes the completion shell setting without deploying a completion hook.
+The tapes run the development plugin and source-only example providers. Pixi installs their prerequisites before recording, and hidden preparation stops if any are missing. The feature-management demo previews, enables, and disables PyPI support in `~/demo/.condarc`. The configuration demo reads and changes the completion shell setting. Neither recording installs packages or completion hooks.
 
-Preparation creates a disposable home, configuration, and caches under `demos/.scratch/`. A private Python startup module restricts conda's configuration search paths in every recording subprocess, including default arguments captured during import. Inherited conda settings are cleared. Bash runs without profiles, and cleanup removes only the directory allocated for that recording. `test-demos` checks this isolation, real command execution, unchanged installed packages, and the absence of shell hooks. Do not source `_prep.sh` into your normal interactive shell.
+Preparation creates a temporary home, configuration, and caches under `demos/.scratch/`. It clears inherited conda settings and restricts configuration search paths in each subprocess, including defaults captured during Python imports. Bash runs without profiles. Cleanup removes only that recording's directory. `test-demos` checks that the commands work, user configuration stays isolated, installed packages do not change, and no shell hooks are created. Do not source `_prep.sh` into your normal interactive shell.
 
-Keep the tapes and generated GIFs together in version control. After recording, inspect the playback for errors, clipped text, personal paths, and enough reading time, then build the docs with `pixi run -e docs docs`. These recordings demonstrate behavior, not command timings. An interrupted recording may leave a directory under the ignored `demos/.scratch/` directory for manual cleanup.
+Commit the tapes alongside their GIFs. Watch each recording for errors, clipped text, personal paths, and enough time to read the output, then run `pixi run -e docs docs`. The typing delays and pauses are chosen for readability, so the demos are not timing benchmarks. An interrupted recording may leave a directory under the ignored `demos/.scratch/` directory for manual cleanup.

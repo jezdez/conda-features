@@ -25,7 +25,7 @@ For normal scopes, conda determines configuration precedence. Another file or an
 
 ## Enable and configure
 
-This recording uses an isolated configuration and the completion provider's declared shell setting. It changes only that setting, not shell startup files.
+The demo changes the completion provider's shell setting in a temporary configuration file. It does not edit shell startup files.
 
 ![Read and change a declared feature setting with conda feature config](../../demos/configuration.gif)
 
@@ -36,7 +36,7 @@ conda feature config FEATURE --set plugins.example_limit 4 \
   --prefix /path/to/environment --dry-run
 ```
 
-The example setting name is a placeholder. Use `explain` to find the provider's configurable settings. Use `--set KEY VALUE` for each setting, repeating `--set` to change several together. Conda validates the values' types. You can change only declared non-secret scalar settings this way.
+The setting name above is a placeholder. Find the provider's settings with `explain`, then pass each as `--set KEY VALUE`. Repeat `--set` to change several together. Conda validates their types. Only the provider's declared non-secret scalar settings are available through this command.
 
 Version 0.2.0 uses `config --set`. On release 0.1.0, use `configure FEATURE KEY=VALUE` instead. That syntax remains supported for existing scripts.
 
@@ -59,7 +59,7 @@ conda feature config FEATURE --remove-key plugins.example_limit --user --dry-run
 conda feature config FEATURE --remove-key plugins.example_limit --user --yes
 ```
 
-This does not force a particular effective value. Check `--show` afterward. The planner rejects a removal that would leave an enabled feature without a required setting.
+Check the resulting value with `--show`, since another source or the default will now apply. Removal is refused if it would leave an enabled feature without a required setting.
 
 Configure a step-backed deployment before enabling it. Once it has a receipt, you must disable it before changing its configuration. The receipt identifies the resources it owns, such as the shell profile used for completion, so those settings must stay consistent until cleanup finishes.
 

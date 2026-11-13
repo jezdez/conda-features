@@ -1,6 +1,6 @@
 # Your first feature deployment
 
-This tutorial enables and disables real PyPI support using a temporary conda configuration file. You will see a preview, inspect the resulting state, and restore the settings the deployment changed. You will not install a package from PyPI or modify shell startup files.
+Preview and enable real PyPI support using a temporary conda configuration file, inspect the resulting state, then disable it to restore the settings it changed. You will not install a package from PyPI or modify shell startup files.
 
 First [install the plugin and its deployment providers](../how-to/install.md) into the conda installation you want to use. You do not need the source checkout or a development environment. Commands below use that installation's `conda`. If necessary, substitute its host interpreter's `python -m conda`.
 

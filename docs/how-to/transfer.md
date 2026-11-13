@@ -1,6 +1,6 @@
 # Migrate and transfer feature choices
 
-Use migration to switch from an old feature to the replacement declared by its provider. To repeat a setup elsewhere, inspect its settings and configure and enable the feature at an explicit destination. Review the preview before approving changes, including any replacement behavior.
+Use migration to switch to a provider-declared replacement. To repeat a setup elsewhere, inspect the source settings, then configure and enable the feature at the chosen destination. In either case, review the preview before accepting changes.
 
 ## Migrate a replaced feature
 
@@ -57,4 +57,4 @@ The file's parent directory must exist. You can also choose `--user`, `--system`
 
 Configuration and enable are separate operations, each with its own preview and confirmation. For an existing step-backed deployment, disable it before changing its settings. Repeat the commands for each feature, setting up prerequisites before dependents.
 
-Repeating settings does not lock package builds, copy ownership, or verify runtime behavior on another machine. Enable checks readiness and plans any deployment at the destination. Handle package resolution and authentication separately.
+Enable checks readiness and plans deployment at the destination. It records ownership there rather than copying it from the source. Reusing settings does not lock package builds or verify runtime behavior, so package resolution and authentication still need separate handling.

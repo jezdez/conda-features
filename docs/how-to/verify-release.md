@@ -32,7 +32,7 @@ gh release verify-asset 0.1.0 conda_features-0.1.0-py3-none-any.whl \
   --repo jezdez/conda-features
 ```
 
-Use `gh attestation verify` below to check the build workflow and source claims as well. The release attestation does not replace those checks. The conda package is hosted on Anaconda.org rather than attached to this GitHub release, so use its build and publication bundles below, not `gh release verify-asset`, to verify it.
+Use `gh attestation verify` below to check the build workflow and source claims separately from release membership. The conda package is hosted on Anaconda.org, so verify it with its build and publication bundles. It is not an attached GitHub asset and cannot be checked with `gh release verify-asset`.
 
 ## Verify 0.1.0
 
@@ -103,6 +103,6 @@ Check that the verified statement's `predicate.targetChannel` is `https://conda.
 
 Future releases use the same pipeline for every version. Uploads refuse to replace existing release assets or Anaconda versions. If publication fails partway through, check which artifacts exist before retrying. Do not move a published tag to recover a failed upload.
 
-Workflow bundles are retained as Actions artifacts and attached to the GitHub release before it becomes public. This keeps verification instructions independent of Actions artifact retention periods.
+Bundles are stored as Actions artifacts and attached to the GitHub release before publication. The release copies remain available after Actions artifacts expire.
 
 Keep releases as drafts until every package and bundle is attached. Publishing the draft locks its assets and tag. Correct a published package with a new version rather than attempting to replace an immutable asset. The `0.1.0` recovery occurred before immutability was enabled and is not a template for future releases.

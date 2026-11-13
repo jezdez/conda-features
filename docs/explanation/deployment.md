@@ -25,9 +25,9 @@ Conda remains responsible for settings types and precedence. The plugin uses its
 
 `InstallPackages`, `SetSetting`, and `EnsureChannel` cover the common operations. `ManagedBlock` handles ownership and recovery around a provider-generated block in a file. A feature coordinates them in declaration order and disables them in reverse order.
 
-A step plan separates what the user approves from the data needed to apply it. The preview shows proposed changes. Private data holds details such as the solved transaction or previous configuration. The receipt stores only the recovery state needed for retry and cleanup.
+A step plan contains the proposed changes shown in the preview and private data needed to apply them, such as a solved transaction or previous configuration. Its receipt stores the recovery state needed for retry and cleanup.
 
-Package solving may refresh caches during preview. Application executes the approved transaction rather than running another unconstrained solve. Existing packages, including the running conda and Python, are protected from replacement by the built-in package step. Packages remain installed when a feature is disabled because removing them safely requires more knowledge than this feature's ownership record.
+Package solving may refresh caches during preview. Apply executes that approved transaction without another solve. The built-in package step refuses to replace existing packages, including the running conda and Python. Disable leaves packages installed because the feature's ownership record cannot establish whether something else still needs them.
 
 ## Ownership is narrower than presence
 

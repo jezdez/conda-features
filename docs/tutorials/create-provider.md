@@ -298,7 +298,7 @@ Choose distinctive feature IDs and setting names before publishing. Feature IDs,
 
 If the real feature needs files, channels, or package prerequisites, replace the boolean flag model with a `steps` tuple and omit `enabled_setting`. Reuse `InstallPackages`, `SetSetting`, and `EnsureChannel` before writing custom steps. Use `ManagedBlock` for a generated block whose exact content and ownership can be checked. See the [step reference](../reference/providers.md#custom-step-interface) and [deployment explanation](../explanation/deployment.md).
 
-That adaptation changes the safety requirements. `--file` does not isolate package installation or shell paths. Use a disposable host runtime and home for deployment tests. Keep step IDs stable, checkpoint ownership before effects, preserve pre-existing resources, and test interrupted enable and disable. Do not add a shell installer to this example and run it against your normal home.
+`--file` does not isolate package installation or shell paths. Use a disposable host runtime and home for deployment tests. Keep step IDs stable, checkpoint ownership before effects, preserve pre-existing resources, and test interrupted enable and disable. Do not add a shell installer to this example and run it against your normal home.
 
 ## Troubleshoot
 

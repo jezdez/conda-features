@@ -37,13 +37,13 @@ conda feature explain conda-pypi
 conda feature enable conda-pypi --user --dry-run
 ```
 
-See [Installation](docs/how-to/install.md) if you have more than one conda installation. The [tutorial](docs/tutorials/first-deployment.md) walks through previewing, enabling, and disabling PyPI support in a temporary configuration file.
+Follow the [tutorial](docs/tutorials/first-deployment.md) to preview, enable, and disable PyPI support using a temporary configuration file.
 
 ## Documentation
 
 See the [changelog](CHANGELOG.md) for released features and publication history.
 
-The documentation is published to [GitHub Pages](https://jezdez.github.io/conda-features/) from `main`. Pull requests build the site without deploying it.
+Read the documentation on [GitHub Pages](https://jezdez.github.io/conda-features/). Changes publish from `main`, while pull requests build the site without deploying it.
 
 Start with the [documentation index](docs/index.md) or the [first deployment tutorial](docs/tutorials/first-deployment.md), which uses your installed plugin and a temporary configuration file.
 
@@ -66,7 +66,7 @@ The [design document](DESIGN.md) includes goals beyond the current implementatio
 
 ![Feature management with Rich output](demos/feature-management.gif)
 
-The demo uses the development version with prerequisites already installed and a temporary configuration. See the documentation for full installation steps.
+The demo runs the development version with preinstalled prerequisites and a temporary configuration file.
 
 ```text
 conda feature list

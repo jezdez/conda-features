@@ -242,7 +242,7 @@ The runner writes `completed=True` after successful enable. A missing completion
 | `render(options)` | Return the exact block that installation will write. This runs during approved apply, not during preview. It may prepare provider data, but must not edit the target file. |
 | `install(options)` | Invoke the provider's installation operation for the already-resolved options. Honor the previewed destination and preserve unrelated text. |
 
-The current completion adapter is an example of this division. It supplies shell-path selection, block recognition, upstream rendering, and installation. `ManagedBlock` supplies ownership comparisons and receipt checkpoints.
+The completion adapter supplies shell-path selection, block recognition, upstream rendering, and installation. `ManagedBlock` supplies ownership comparisons and receipt checkpoints.
 
 ### Block lifecycle
 
@@ -268,7 +268,7 @@ A failed step stops execution. Completed work and the receipt remain. There is n
 
 Use `repair` to preview another enable attempt for saved intent, or disable to preview reverse cleanup. Neither operation may claim a pre-existing resource or overwrite later edits. Missing providers must be reinstalled before their steps can interpret receipts. Diagnostics can report a receipt whose feature is no longer installed, but cannot safely invent its cleanup procedure.
 
-The runner rejects unsupported receipt versions and saved step IDs absent from the current declaration. Renaming or removing a step can therefore strand old receipts until the previous provider is restored. Added IDs are not rejected by that particular check, but authors must still plan upgrades explicitly. Changing a managed setting target or generated block can also require the old provider. Tell users to disable with the previous provider version before upgrading when recovery data will no longer be understood.
+The runner rejects unsupported receipt versions and saved step IDs absent from the current declaration. Renaming or removing a step can therefore strand old receipts until the previous provider is restored. That check permits new step IDs, but authors must still plan upgrades explicitly. Changing a managed setting target or generated block can also require the old provider. Tell users to disable with the previous provider version before upgrading when recovery data will no longer be understood.
 
 Built-in ownership checks cover declared setting keys and channel strings. They cannot detect two arbitrary custom steps writing the same external resource. Avoid multiple writers, use a shared prerequisite feature for shared resources, and test that disabling one consumer preserves resources still needed by another.
 

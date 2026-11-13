@@ -24,7 +24,7 @@ An empty problem list means the local checks passed. These checks do not verify 
 
 ## Retry interrupted setup
 
-Choose the retry command based on which operation was interrupted. To finish enabling, use `repair` as shown below. To finish disabling, rerun `disable FEATURE` at the same scope or file, starting with `--dry-run`. The feature still counts as enabled while its receipt remains, until cleanup finishes. Using `repair` calls enable and can reinstall resources already removed during an interrupted disable.
+After interrupted enable, use `repair` as shown below. After interrupted disable, rerun `disable FEATURE` at the same scope or file, starting with `--dry-run`. The receipt continues to record an enabled choice until cleanup finishes. Do not use `repair` to finish disabling: it calls enable and can reinstall resources you already removed.
 
 ```sh
 conda feature repair FEATURE --file /path/to/feature.yaml --dry-run

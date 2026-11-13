@@ -20,7 +20,7 @@ conda feature enable conda-pypi --prefix /path/to/environment --dry-run
 conda feature enable conda-pypi --prefix /path/to/environment --yes
 ```
 
-You can also use user scope, but not installation-wide feature settings. If packages are missing, the preview lists the host prefix and exact packages to install. The package step preserves the running conda and Python versions and refuses any transaction that would unlink existing packages. If this blocks setup, install compatible prerequisites separately and preview again.
+PyPI support also accepts user scope. Installation-wide feature settings are unsupported. If prerequisites are missing, the preview lists the exact packages and their host prefix. The package step keeps the running conda and Python versions and refuses to unlink existing packages. If that blocks setup, install compatible prerequisites separately and preview again.
 
 After enabling, check `feature explain` at the same scope. Make sure the solver and channel configuration take effect. Values in a lower-priority file may be overridden. Follow [conda-pypi's upstream usage guide](https://github.com/conda/conda-pypi) to install packages. This plugin's readiness check does not try a PyPI installation.
 
@@ -60,7 +60,7 @@ Setup installs missing prerequisites, generates completion data without repodata
 | PowerShell on Windows | An existing profile under `Documents/PowerShell` or `Documents/WindowsPowerShell`, otherwise the PowerShell profile path |
 | PowerShell elsewhere | `~/.config/powershell/Microsoft.PowerShell_profile.ps1` |
 
-Check the exact path in the preview. Before writing, the adapter checks the path chosen by the installed upstream package. The generated hook invokes the command name `conda`, so the shell's `conda` must resolve to the installation hosting completion support. Restart the shell after setup.
+Check the path in the preview. The adapter confirms that the installed upstream package selects the same path before writing. The hook invokes `conda`, so your shell must resolve that command to the installation hosting completion support. Restart the shell after setup.
 
 Disable before selecting a different shell:
 
