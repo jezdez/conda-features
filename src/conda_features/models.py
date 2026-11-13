@@ -12,6 +12,7 @@ from conda.common.configuration import YamlRawParameter
 from conda.models.version import VersionSpec
 
 from .operations.configuration import apply_change, plan_change
+from .operations.dependencies import plan_prerequisites, prerequisite_order
 from .operations.settings import setting_context, value
 from .steps import runner
 
@@ -64,9 +65,29 @@ class Feature:
         apply_change(plan, ctx)
 
     def enable(
-        self, catalog: Catalog, ctx: Context, path: Path, scope: str
+        self,
+        catalog: Catalog,
+        ctx: Context,
+        path: Path,
+        scope: str,
+        *,
+        with_dependencies: bool = False,
     ) -> dict[str, Any]:
         """Plan an opt-in. The caller confirms and applies the returned plan."""
+        if with_dependencies:
+            selected = prerequisite_order(catalog, ctx, scope, self.name)
+            if all(catalog[name][1].enabled_setting for name in selected):
+                return plan_change(
+                    catalog,
+                    ctx,
+                    path,
+                    scope,
+                    "enable",
+                    self.name,
+                    selected_names=selected,
+                )
+            if len(selected) > 1:
+                return plan_prerequisites(self, catalog, ctx, path, scope)
         if self.steps:
             return runner.plan(self, catalog, ctx, path, scope, "enable")
         return plan_change(catalog, ctx, path, scope, "enable", self.name)
@@ -101,7 +122,7 @@ class Feature:
         self,
         catalog: Catalog,
         ctx: Context,
-        scope: str,
+        scope: str | None,
         visiting: tuple[str, ...] = (),
         *,
         path: Path | None = None,
@@ -109,7 +130,7 @@ class Feature:
         """Explain the configured choice and known prerequisites."""
         provider, _ = catalog[self.name]
         reasons = []
-        if scope not in self.scopes:
+        if scope is not None and scope not in self.scopes:
             reasons.append(f"Unsupported scope: {scope}.")
         if self.retired:
             reasons.append(
@@ -158,7 +179,7 @@ class Feature:
                     reasons.append(f"Missing dependency: {dependency}.")
                 else:
                     dependency_status = catalog[dependency][1].status(
-                        catalog, ctx, scope, (*visiting, self.name)
+                        catalog, ctx, None, (*visiting, self.name)
                     )
                     if (
                         dependency_status["effective"] != "enabled"

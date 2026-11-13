@@ -13,6 +13,13 @@ def configure_parser(parser: ArgumentParser) -> None:
     for name in ("list", "explain", "enable", "disable", "configure"):
         command = commands.add_parser(name)
         add_output_and_prompt_options(command)
+        command.add_argument(
+            "--check-prefix",
+            action="append",
+            default=[],
+            metavar="PATH",
+            help="Also check this environment before mutation. Does not write to it.",
+        )
         scope = command.add_mutually_exclusive_group()
         scope.add_argument(
             "--user", action="store_true", help="Use user configuration (default)."

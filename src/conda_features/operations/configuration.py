@@ -31,9 +31,13 @@ def plan_change(
     *,
     all_features: bool = False,
     settings: dict[str, str] | None = None,
+    selected_names: list[str] | None = None,
+    initial_content: dict | None = None,
 ) -> dict[str, Any]:
     validate_catalog(catalog, ctx)
-    if all_features:
+    if selected_names is not None:
+        selected = selected_names
+    elif all_features:
         if operation != "disable" or name is not None:
             raise CondaError("Use disable --all without a feature name.")
         selected = [
@@ -44,7 +48,11 @@ def plan_change(
     else:
         raise CondaError(f"Unknown feature: {name}")
     initial = fingerprint(path)
-    config = ConfigurationFile(path=path, context=ctx)
+    config = (
+        ConfigurationFile(path=path, context=ctx)
+        if initial_content is None
+        else ConfigurationFile(content=initial_content, context=ctx)
+    )
     changes = {}
     expected_values = {}
     ordered = []

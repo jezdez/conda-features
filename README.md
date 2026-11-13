@@ -55,6 +55,10 @@ Mutating commands preview changes with `--dry-run`. Without `--yes`, interactive
 
 Enabling requires compatible versions and platforms, enabled dependencies, and no declared conflicts. Disabling preserves other settings and installed packages. Bulk disable handles dependents before prerequisites where possible. Changes take effect on the next conda invocation.
 
+Use `enable FEATURE --with-dependencies` to preview prerequisite opt-ins at the selected scope. Nothing is enabled in another scope implicitly. Already-enabled prerequisites are reused, including inherited user or installation choices. Prerequisites with unsupported write scopes or cycles are rejected. Combined prerequisite plans support settings and channels. Deploy missing package or shell-setup prerequisites separately before retrying, so readiness is checked against real deployment results rather than assumed success.
+
+Shared user and installation changes check the current user's conda environment registry and the hosting installation. Add `--check-prefix PATH` for each additional environment that must be protected. The preview lists checked environments and explains that unregistered environments and other users' registries are not scanned. These checks never write to the other environments. Changes that would remove an enabled dependent's prerequisite are refused, including bulk disable. An environment configuration changed after preview requires a new preview.
+
 Configuration writes preserve comments and unrelated settings, reject stale destination files, and use atomic replacement. A sidecar lock coordinates this plugin's writers. Other editors do not honor that lock.
 
 ## Deployment Providers
@@ -185,6 +189,6 @@ Tests use conda's CLI, context, and environment fixtures. Subprocess tests verif
 ## Current Limits
 
 - No authentication, migrations, telemetry, export, or `conda doctor` integration. Automatic prerequisite installation is provided by the two deployment adapters, not a remote feature catalog.
-- No dependency scanning across other environments or automatic enabling of prerequisites.
+- Environment checks cover explicit targets and the current user's registry, not every environment on the machine. Prerequisite opt-ins require `--with-dependencies` and confirmation.
 - Runtime activity is not observed. Providers must check their own settings and prerequisites before executing optional behavior.
 - Native verification has covered macOS with conda 26.9.4. The lockfile also includes Linux and Windows, but those platforms have not been tested natively.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from argparse import Namespace
 from copy import copy
 from pathlib import Path
 from typing import Any
@@ -67,9 +68,9 @@ def prospective_context(ctx: Context, path: Path, content: dict) -> Context:
             }
     if not inserted:
         data[path] = raw
-    result = Context(search_path=())
+    result = Context(search_path=(), argparse_args=Namespace(**ctx._argparse_args))
     result.raw_data.clear()
-    result.raw_data.update(data)
+    result._set_raw_data(data)
     return result
 
 

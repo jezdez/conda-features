@@ -10,6 +10,12 @@ def render(result: dict) -> None:
         print(json.dumps(result, default=str))
     elif "changes" in result:
         print(f"Configuration: {result['path']} ({result['scope']})")
+        if "checked_environments" in result:
+            print(
+                "Checked environments: "
+                + (", ".join(result["checked_environments"]) or "none")
+            )
+            print(result["discovery"])
         for key, new_value in result["changes"].items():
             print(f"  {key} = {new_value}")
         print(result["message"])
