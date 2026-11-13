@@ -190,6 +190,14 @@ Providers explicitly declare transferable non-secret scalar settings with `migra
 
 `graduation="optional"` keeps enable and disable available. `graduation="unconditional"` marks an obsolete boolean opt-in whose functionality can no longer be disabled here. `conda feature cleanup NAME --dry-run` previews removal of that saved flag, and confirmation is required to apply it. Cleanup leaves unrelated settings and deployment resources alone. Providers must retain the old setting declaration while supporting cleanup. There are no automatic migrations.
 
+## Portable Feature Intent
+
+`conda feature export --file source.yaml` writes one versioned JSON document to stdout. It contains saved feature choices at that scope, provider identities, and only settings explicitly listed in each provider's `portable_settings`. That list must be a subset of its declared non-secret scalar settings. Unset choices, credentials, authenticated URLs, and machine-specific absolute paths are not exported. Providers must not mark secrets portable.
+
+`conda feature apply intent.json --file target.yaml --dry-run` previews applying the document. Choose `--user`, `--system`, `--prefix`, or `--file` explicitly, then confirm or pass `--yes` to write. The exported scope is descriptive, not permission to choose a destination. Unknown providers, changed provider identities, retired or replaced IDs, incompatible features, and undeclared settings are rejected before mutation. Review replacements with `feature explain` and migrate explicitly rather than silently accepting different behavior.
+
+Boolean feature choices and portable settings are validated together and applied in one configuration write. Deployment choices use their existing plans, one feature at a time. Configure deployment settings explicitly before applying their saved choice. Intent is not a package lockfile or proof that setup or authentication succeeded. It contains no receipt, machine path, or observed runtime state.
+
 ## Development
 
 ```sh
@@ -204,7 +212,7 @@ Tests use conda's CLI, context, and environment fixtures. Subprocess tests verif
 
 ## Current Limits
 
-- No authentication, automatic migrations, telemetry, or export. Automatic prerequisite installation is provided by the two deployment adapters, not a remote feature catalog.
+- No authentication, automatic migrations, or telemetry. Automatic prerequisite installation is provided by the two deployment adapters, not a remote feature catalog.
 - Environment checks cover explicit targets and the current user's registry, not every environment on the machine. Prerequisite opt-ins require `--with-dependencies` and confirmation.
 - Runtime activity is not observed. Providers must check their own settings and prerequisites before executing optional behavior.
 - Native verification has covered macOS with conda 26.9.4. The lockfile also includes Linux and Windows, but those platforms have not been tested natively.

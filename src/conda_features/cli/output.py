@@ -6,7 +6,9 @@ from conda.base.context import context
 
 
 def render(result: dict) -> None:
-    if context.json:
+    if context.json or (
+        result.get("version") == 1 and "features" in result and "scope" in result
+    ):
         print(json.dumps(result, default=str))
     elif "problems" in result:
         for problem in result["problems"]:

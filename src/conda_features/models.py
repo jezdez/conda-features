@@ -14,6 +14,7 @@ from conda.models.version import VersionSpec
 from .operations import lifecycle
 from .operations.configuration import apply_change, plan_change
 from .operations.dependencies import plan_prerequisites, prerequisite_order
+from .operations.intent import export_feature
 from .operations.settings import setting_context, value
 from .steps import runner
 
@@ -53,6 +54,7 @@ class Feature:
     steps: tuple[Step, ...] = ()
     migration_settings: tuple[tuple[str, str], ...] = ()
     graduation: str | None = None
+    portable_settings: tuple[str, ...] = ()
 
     def validate_deployment_methods(self) -> None:
         for method in ("enable", "disable", "status", "apply"):
@@ -150,6 +152,11 @@ class Feature:
         self, catalog: Catalog, ctx: Context, path: Path, scope: str
     ) -> dict[str, Any]:
         return lifecycle.migrate(self, catalog, ctx, path, scope)
+
+    def export_intent(
+        self, catalog: Catalog, ctx: Context, path: Path, scope: str
+    ) -> dict[str, Any] | None:
+        return export_feature(self, catalog, ctx, path, scope)
 
     def cleanup(
         self, catalog: Catalog, ctx: Context, path: Path, scope: str

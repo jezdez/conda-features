@@ -20,6 +20,8 @@ def configure_parser(parser: ArgumentParser) -> None:
         "repair",
         "migrate",
         "cleanup",
+        "export",
+        "apply",
     ):
         command = commands.add_parser(name)
         add_output_and_prompt_options(command)
