@@ -10,7 +10,7 @@ readme = "README.md"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
-dependencies = ["filelock>=3.16", "pluggy>=1.5"]
+dependencies = ["filelock>=3.16", "pluggy>=1.5", "rich>=13.9"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src", "/README.md", "/LICENSE", "/pyproject.toml"]
@@ -32,6 +32,7 @@ python = "3.12.*"
 conda = "26.9.4.*"
 filelock = ">=3.16"
 pluggy = ">=1.5"
+rich = ">=13.9"
 pytest = ">=8"
 ruff = ">=0.14"
 ty = "*"
@@ -61,6 +62,23 @@ conda-completion = "0.3.2.*"
 [tool.pixi.feature.integration.tasks]
 test-integration = "pytest tests/test_examples.py"
 
+[tool.pixi.feature.demos]
+platforms = ["linux-64", "osx-arm64"]
+
+[tool.pixi.feature.demos.dependencies]
+vhs = ">=0.12.1"
+ttyd = ">=1.7"
+ffmpeg = ">=6"
+bash = ">=5"
+
+[tool.pixi.feature.demos.tasks.demos]
+cmd = "env -u BASH_ENV -u ENV -u PROMPT_COMMAND -u PYTHONOPTIMIZE bash --noprofile --norc demos/record.sh {{ name }}"
+args = [{ arg = "name", default = "", choices = ["", "feature-management", "configuration"] }]
+description = "Record real CLI demos in disposable configuration"
+
+[tool.pixi.feature.demos.tasks]
+test-demos = "pytest -q demos/test_prep.py"
+
 [tool.pixi.feature.docs.dependencies]
 sphinx = ">=8"
 myst-parser = ">=4"
@@ -81,6 +99,7 @@ rattler-build = ">=0.74"
 default = { features = [], solve-group = "default" }
 examples = { features = ["examples"], solve-group = "default" }
 integration = { features = ["examples", "integration"] }
+demos = { features = ["examples", "integration", "demos"] }
 docs = { features = ["docs"], solve-group = "default" }
 release = { features = ["release"], no-default-feature = true }
 

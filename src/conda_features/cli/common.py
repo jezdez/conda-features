@@ -6,11 +6,13 @@ from pathlib import Path
 from conda import CondaError
 from conda.base.context import context
 from conda.common.configuration import YamlRawParameter
+from rich.console import Console
 
 from ..models import Catalog, Feature
 from ..operations.configuration import apply_change
 from ..operations.dependencies import guard_plan, projected_context, verify_guard
 from ..operations.settings import fingerprint
+from .output import render_plan
 from .targets import target
 
 
@@ -46,15 +48,7 @@ def confirm_and_apply(args, catalog, ctx, plan):
                 raise CondaError(
                     "Review with --dry-run, then pass --yes to apply noninteractively."
                 )
-            print(f"Configuration: {plan['path']} ({plan['scope']})", file=sys.stderr)
-            if plan["checked_environments"]:
-                print(
-                    "Checked environments: " + ", ".join(plan["checked_environments"]),
-                    file=sys.stderr,
-                )
-            print(plan["discovery"], file=sys.stderr)
-            for key, new_value in plan["changes"].items():
-                print(f"  {key} = {new_value}", file=sys.stderr)
+            render_plan(plan, Console(stderr=True, highlight=False, soft_wrap=True))
             print("Proceed? [y/N] ", end="", file=sys.stderr, flush=True)
             if sys.stdin.readline().strip().lower() not in ("y", "yes"):
                 raise CondaError("Cancelled. No changes made.")

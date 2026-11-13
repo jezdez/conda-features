@@ -1,7 +1,6 @@
 """Load the selected subcommand and render its result."""
 
 import json
-import sys
 from argparse import Namespace
 from importlib import import_module
 
@@ -11,7 +10,7 @@ from conda.common.configuration import ConfigurationError
 
 from ..operations.discovery import discover
 from ..operations.validation import validate_catalog
-from .output import render
+from .output import render, render_error
 from .targets import target
 
 
@@ -29,7 +28,7 @@ def execute(args: Namespace) -> int:
         if context.json:
             print(json.dumps({"error": message}))
         else:
-            print(message, file=sys.stderr)
+            render_error(message)
         return 1
     render(result)
     return 0
