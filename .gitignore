@@ -7,4 +7,5 @@ __pycache__/
 dist/
 conda-dist/
 docs/_build/
+demos/.scratch/
 *.egg-info/
