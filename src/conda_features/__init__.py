@@ -70,6 +70,5 @@ including installation of missing prerequisites. Bulk disable handles boolean
 features and identifies deployments that need individual disable commands.
 
 Without an installed provider, list reports an empty catalog. Authentication,
-cross-environment dependency scanning, telemetry, migrations, export, and
-doctor integration are not implemented.
+complete cross-environment inventory and telemetry are not implemented.
 """

@@ -26,10 +26,6 @@ def validate_catalog(catalog: Catalog, ctx: Context) -> None:
             raise CondaError(f"Invalid feature ID: {name!r}")
         if feature.maturity not in ("experimental", "preview", "stable"):
             raise CondaError(f"Invalid maturity for {name}.")
-        if not set(feature.portable_settings) <= set(feature.settings):
-            raise CondaError(
-                f"Portable settings for {name} must be declared non-secret settings."
-            )
         if feature.graduation not in (None, "optional", "unconditional"):
             raise CondaError(f"Invalid graduation for {name}.")
         if feature.graduation == "unconditional" and feature.steps:

@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-11-13
+
+- Breaking: remove `conda feature export`, `conda feature apply`, the custom intent JSON format, and `Feature.portable_settings`/`export_intent`. There is no deprecation period or replacement manifest. Use conda configuration and explicit feature commands. Existing local deployment receipts, `--json` output, and the provider's `Feature.apply` method are unchanged. Release 0.1.0 artifacts retain the old commands.
 
 - Add `conda feature config FEATURE --set KEY VALUE`, following `conda config` argument syntax. Repeat `--set` for multiple settings. The released `configure FEATURE KEY=VALUE` command remains supported.
 - Add feature-scoped `--get`, `--show`, `--show-sources`, `--describe`, `--validate`, and confirmed `--remove-key`. Queries expose only declared settings. Removing an override preserves inherited configuration and checks feature requirements.

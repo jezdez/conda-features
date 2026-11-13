@@ -86,7 +86,7 @@ Conda validation errors omit configuration values from command output because th
 
 Sequence operations (`--add`, `--prepend`, `--append`, and `--remove`) are not supported because feature configuration currently declares scalar settings only.
 
-The `config` command is new in the development version. Release 0.1.0 supports setting values through the following syntax, which remains available:
+The `config` command was added in 0.2.0. Release 0.1.0 supports setting values through the following syntax, which remains available:
 
 ```sh
 conda feature configure FEATURE KEY=VALUE [KEY=VALUE ...] [SCOPE] [--dry-run | --yes]
@@ -125,31 +125,13 @@ conda feature cleanup FEATURE [SCOPE] [--dry-run | --yes]
 
 Removes saved obsolete boolean opt-ins for features declared unconditionally graduated. It does not remove functionality, packages, or shell resources. The provider must retain the old setting declaration to identify it and its aliases.
 
-## Portable intent
-
-### `export [FEATURE ...]`
-
-```sh
-conda feature export [FEATURE ...] [SCOPE] > intent.json
-```
-
-Always returns one JSON intent document, including without `--json`. With no IDs, it exports saved choices supported at that scope. Export omits unset choices and settings absent from the provider's portability allowlist. See [intent format](intent.md).
-
-### `apply MANIFEST`
-
-```sh
-conda feature apply intent.json --file destination.yaml --dry-run --json
-```
-
-Requires an explicit `--user`, `--system`, `--prefix`, or `--file`. Reads version-1 intent and validates providers, settings, compatibility, dependencies, and conflicts. Boolean feature changes share one configuration write. Deployment imports are limited to one feature without imported settings. Apply refuses retired/replaced IDs, which require explicit migration.
-
 ## Results and exit statuses
 
 Mutation results include the operation, selected feature IDs, destination path, scope, public changes, and a message. Depending on the operation, they can also include removal keys, post-operation status, checked environments, and the scope of discovery. Private solved transactions, fingerprints, and recovery data are not returned as public plans.
 
 Successful queries and previews exit `0`. Handled operation errors exit `1`. Argument parsing errors exit `2`. An empty diagnostic problem list is not required for a successful diagnostic query. Unexpected runtime failures or conda-level failures may be handled by conda itself.
 
-Noninteractive writes require `--yes`. JSON output is noninteractive even when stdin is a terminal. A no-op or dry-run does not write. Prompts and diagnostics go to stderr. Do not combine stderr with stdout when saving an intent document. External errors for export/apply are sanitized because conda validation errors can contain configuration values.
+Noninteractive writes require `--yes`. JSON output is noninteractive even when stdin is a terminal. A no-op or dry-run does not write. Prompts and diagnostics go to stderr.
 
 ## Conda doctor
 

@@ -34,7 +34,7 @@ conda feature config FEATURE --set plugins.example_limit 4 \
 
 The example setting name is a placeholder. Use `explain` to find the provider's configurable settings. Use `--set KEY VALUE` for each setting, repeating `--set` to change several together. Conda validates the values' types. You can change only declared non-secret scalar settings this way.
 
-The development version uses `config --set`. On release 0.1.0, use `configure FEATURE KEY=VALUE` instead. That syntax remains supported for existing scripts.
+Version 0.2.0 uses `config --set`. On release 0.1.0, use `configure FEATURE KEY=VALUE` instead. That syntax remains supported for existing scripts.
 
 To inspect a setting before changing it:
 

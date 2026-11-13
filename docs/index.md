@@ -2,7 +2,7 @@
 
 `conda-features` adds commands to inspect, enable, and configure optional features. Installed providers describe each feature's prerequisites and setup. You review the changes before enabling a feature, and the plugin records which resources it can safely remove on disable.
 
-Release 0.1.0 is available on [PyPI](https://pypi.org/project/conda-features/0.1.0/) and the [jezdez Anaconda channel](https://anaconda.org/jezdez/conda-features). See [installation](how-to/install.md) for the correct host environment and the separate source-only examples package.
+The core package is distributed through [PyPI](https://pypi.org/project/conda-features/) and the [jezdez Anaconda channel](https://anaconda.org/jezdez/conda-features). See [installation](how-to/install.md) for the correct host environment and the separate source-only examples package.
 
 The catalog is empty until you install a provider. The source-only `conda-features-examples` distribution supplies PyPI support and shell completion. Enabling either can install packages and change configuration or shell files.
 
@@ -67,7 +67,6 @@ how-to/develop
 
 reference/cli
 reference/providers
-reference/intent
 changelog
 ```
 
@@ -94,13 +93,12 @@ design
 
 - [Command reference](reference/cli.md): commands, arguments, scopes, output, and exit statuses.
 - [Provider API](reference/providers.md): `Feature`, Pluggy hooks, built-in steps, and custom deployment steps.
-- [Intent format](reference/intent.md): the versioned export/apply document and its validation rules.
 - [Deployment model](explanation/deployment.md): configuration precedence, readiness, ownership, and recovery.
 - [Development](how-to/develop.md): test environments, quality checks, and package builds.
 
 ## Current scope
 
-The command examples use the development version's `config FEATURE --set KEY VALUE` syntax. On release 0.1.0, use `configure FEATURE KEY=VALUE`. The older command remains supported.
+The command examples use 0.2.0's `config FEATURE --set KEY VALUE` syntax. On release 0.1.0, use `configure FEATURE KEY=VALUE`. The older command remains supported. The custom intent format and export/apply commands were removed in 0.2.0.
 
 These pages cover the development version. The [design goals](design.md) include future work. Python 3.12 or newer and conda 26.9.4 or newer are required. Tests pin Python 3.12 and conda 26.9.4, with core CI on Linux x64, Windows x64, and ARM macOS and real-provider integration on Linux. Other conda versions and shell/platform combinations may not have been tested.
 

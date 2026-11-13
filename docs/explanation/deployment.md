@@ -37,7 +37,7 @@ Feature declarations cannot claim the same setting or channel independently. A s
 
 ## Receipts are not backups or locks on user intent
 
-For `settings.yaml` and feature `example`, the receipt is `settings.yaml.example.json`. Current receipts use version 2 and store state by stable step ID. The exact contents are implementation details, not a public interchange format. Use intent export to move choices between machines.
+For `settings.yaml` and feature `example`, the receipt is `settings.yaml.example.json`. Current receipts use version 2 and store state by stable step ID. The exact contents are implementation details, not a public interchange format. Keep receipts with the resources they describe. On another machine, configure settings and enable features explicitly so setup checks run and new ownership is recorded.
 
 The runner checkpoints ownership before side effects and marks completion afterward. If an operation succeeds but a final checkpoint fails, a retry can inspect both the resource and saved state. A failed later step does not imply earlier steps were rolled back. Diagnostics can report incomplete checkpoints even when resources already look ready.
 
@@ -47,4 +47,4 @@ File fingerprints and sidecar locks help detect changes made after preview. Pack
 
 Pluggy validates registration and hook signatures. It does not sandbox imports or hook execution. Providers must keep declaration hooks and checks free of setup, network access, and credential inspection. Only install providers you trust.
 
-Providers decide which settings are portable. The plugin rejects recognizable credential-bearing URLs and absolute paths, but cannot find every secret in a string. Keep secrets out of both configurable and portable feature settings.
+Providers must keep secrets out of configurable feature settings. Configuration queries can display those settings. Use the provider's authentication backend for credentials instead.

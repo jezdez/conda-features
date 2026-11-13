@@ -63,4 +63,4 @@ The doctor adapter inspects that environment's `.condarc` and receipts. It print
 - Unsupported scope: preview at a scope the provider supports. Review the new destination before making changes.
 - Package replacement refused: install compatible prerequisites outside feature deployment, then preview again. The package step will not replace existing packages in the running installation.
 - Pre-existing completion hook: the adapter will not claim ownership of it. Manage the installation through its original tool, or deliberately remove it before redeploying.
-- Sanitized intent error: export/apply omits configuration values from external errors because they can contain credentials. Inspect the local configuration privately instead of posting it unredacted.
+- Sanitized config error: configuration validation errors can contain private values. Inspect invalid configuration locally instead of posting it unredacted.

@@ -1,6 +1,6 @@
 # Migrate and transfer feature choices
 
-Use migration to switch from an old feature to the replacement declared by its provider. Use export/apply to move saved choices between configurations. Review the preview before approving changes, including any replacement behavior.
+Use migration to switch from an old feature to the replacement declared by its provider. To repeat a setup elsewhere, inspect its settings and configure and enable the feature at an explicit destination. Review the preview before approving changes, including any replacement behavior.
 
 ## Migrate a replaced feature
 
@@ -28,33 +28,33 @@ You can still enable and disable an optional graduated feature. An unconditional
 
 Cleanup requires the provider's old feature and setting declarations. It leaves package deployments, shell resources, and unrelated configuration in place. If the destination changes after preview, cleanup stops.
 
-## Export saved intent
+## Inspect the source configuration
 
 ```sh
-conda feature export --file source.yaml > intent.json
+conda feature explain FEATURE --file source.yaml
+conda feature config FEATURE --get --file source.yaml
+conda feature config FEATURE --show --file source.yaml
 ```
 
-Export always writes JSON, even without `--json`. To select feature IDs:
+Replace `FEATURE` with the installed feature ID. `--get` shows declared settings saved in the selected file. `--show` shows effective values, including defaults and environment-variable overrides. Use `explain` to check the saved enabled choice separately.
+
+Choose which values belong at the destination. A machine-specific path may need changing, and an inherited value may not need to be saved there.
+
+## Configure and enable at the destination
 
 ```sh
-conda feature export FEATURE_A FEATURE_B --file source.yaml > intent.json
+conda feature config FEATURE --set KEY VALUE --file destination.yaml --dry-run
+conda feature config FEATURE --set KEY VALUE --file destination.yaml --yes
+conda feature enable FEATURE --file destination.yaml --dry-run
+conda feature enable FEATURE --file destination.yaml --yes
+conda feature config FEATURE --get --file destination.yaml
+conda feature config FEATURE --show --file destination.yaml
 ```
 
-Export includes only enabled/disabled choices saved at that scope and omits unset choices. Providers must allow portable settings separately, so a configurable setting may not be portable. Receipts and runtime observations are never included.
+Replace `KEY VALUE` with a declared setting and its chosen value. Repeat `--set` for additional settings, or skip configuration if the destination's effective values already meet your needs. To save a disabled choice, use `disable` instead of `enable` and review its preview.
 
-Keep stdout separate from stderr when saving the document. Export may fail if it cannot safely inspect the configuration, or if a portable value contains an authenticated URL, unsupported numeric value, or machine-specific absolute path. Check that export succeeded before using the file. A redirected error or empty file is not a valid export.
+The file's parent directory must exist. You can also choose `--user`, `--system`, or `--prefix PATH` explicitly, if the feature supports that scope. The provider must be installed in the conda installation running these commands.
 
-## Apply to an explicit destination
+Configuration and enable are separate operations, each with its own preview and confirmation. For an existing step-backed deployment, disable it before changing its settings. Repeat the commands for each feature, setting up prerequisites before dependents.
 
-```sh
-conda feature apply intent.json --file destination.yaml --dry-run --json
-conda feature apply intent.json --file destination.yaml --yes --json
-```
-
-The file's parent directory must exist. You can also choose `--user`, `--system`, or `--prefix PATH` explicitly. The scope recorded in the source document tells you where the choices came from. You still need to choose and authorize the destination.
-
-Apply requires installed declarations with matching provider identities. It rejects unknown features, duplicate entries, unsupported scopes, retired or replaced IDs, incompatible enabled features, and non-portable settings. Migrate old IDs before exporting new intent. Renaming them in a manifest is not a substitute for migration.
-
-Apply validates boolean choices and settings together, then writes them once. You can apply only one deployment feature at a time, without deployment settings in the document. If an exported deployment includes settings, configure those values explicitly at the destination first. Then change the single-feature document's `settings` object to `{}` and review it before applying the saved choice. If you exported several deployments together, export each one separately before applying.
-
-Transferring intent does not lock package builds, copy ownership, or verify readiness on another machine. You still need to handle package resolution and authentication separately. See the [format reference](../reference/intent.md) for the exact schema.
+Repeating settings does not lock package builds, copy ownership, or verify runtime behavior on another machine. Enable checks readiness and plans any deployment at the destination. Handle package resolution and authentication separately.

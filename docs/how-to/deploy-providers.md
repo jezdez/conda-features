@@ -37,7 +37,7 @@ The setting step restores the previous solver only if it owns that change and th
 
 Completion setup supports user scope. Choose the shell before enabling:
 
-These commands use the development version's `config --set`. On release 0.1.0, use `conda feature configure conda-completion plugins.feature_completion_shell=zsh` with the same scope and confirmation flags.
+These commands use 0.2.0's `config --set`. On release 0.1.0, use `conda feature configure conda-completion plugins.feature_completion_shell=zsh` with the same scope and confirmation flags.
 
 ```sh
 conda feature config conda-completion \

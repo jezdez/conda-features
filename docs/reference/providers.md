@@ -43,7 +43,7 @@ def conda_features() -> Iterable[Feature]:
 
 Discovery loads each installed entry point, registers its module, checks hook declarations, collects features, and returns a catalog sorted by feature ID. A missing decorator, failed import, exception while collecting declarations, invalid declaration type, or duplicate feature ID fails discovery. Providers are not silently skipped. Entry-point names must also be unique within the feature provider manager.
 
-The provider identity shown in status and exported intent is the name on the left of the `conda_features` entry point, such as `my-provider`. It is not the distribution version, an import path, or a cryptographic identity. Renaming that entry point makes previously exported intent fail the provider-identity check.
+The provider identity shown in status is the name on the left of the `conda_features` entry point, such as `my-provider`. It is not the distribution version, an import path, or a cryptographic identity.
 
 Install the distribution in the Python environment running conda. Installing it only in an environment selected with `--prefix` does not make the hosting conda discover it. Declare `conda-features` as a dependency and provision conda through conda or Pixi. The current package requires Python 3.12 or newer and conda 26.9.4 or newer.
 
@@ -72,7 +72,6 @@ Import `Feature` from `conda_features.models`. This frozen dataclass holds the f
 | `steps` | `tuple[Step, ...]` | `()` | Deployment steps in enable order. Disable runs them in reverse. Each must implement `Step` and have a unique ID within the feature. |
 | `migration_settings` | `tuple[tuple[str, str], ...]` | `()` | Explicit old-setting/new-setting pairs for replacement migration. Destination names must be unique. Migration checks that both ends are in the respective features' `settings` allowlists. |
 | `graduation` | `str \| None` | `None` | `None`, `"optional"`, or `"unconditional"`. Unconditional graduation supports obsolete boolean flags only, not step-backed resource removal. |
-| `portable_settings` | `tuple[str, ...]` | `()` | Subset of `settings` permitted in portable intent. Mark only non-secret scalar settings that make sense on another machine. |
 
 Type annotations describe the supported input shapes. Catalog validation checks the constraints listed here, but it is not a general schema validator for arbitrary Python objects.
 
@@ -82,7 +81,7 @@ Register settings with conda before referring to them in a feature. A plugin reg
 
 Feature setting ownership is global within the discovered catalog. The enabled flag, configurable settings, and keys written by `SetSetting` cannot also belong to another feature. Repeating a declared setting is rejected. A `SetSetting` key may also appear in that same feature's `settings` tuple, but users must disable a saved deployment before configuring it.
 
-The allowlist is an author assertion that values are safe to display and persist. The validator cannot identify an arbitrary secret string. Do not declare tokens, passwords, authenticated endpoints, or credentials as configurable, managed, migratable, or portable settings. Normal previews may include setting values. A `SetSetting` receipt records the previous value of its own key so that disable can restore it.
+The allowlist is an author assertion that values are safe to display and persist. The validator cannot identify an arbitrary secret string. Do not declare tokens, passwords, authenticated endpoints, or credentials as configurable, managed, or migratable settings. Normal previews may include setting values. A `SetSetting` receipt records the previous value of its own key so that disable can restore it.
 
 Use canonical setting names. Conda performs type normalization, alias handling, validation, and precedence resolution. Providers should not add another `.condarc` parser.
 
@@ -122,7 +121,6 @@ config_query(catalog, ctx, path, scope, action, keys=None) -> dict
 repair(catalog, ctx, path, scope) -> dict
 migrate(catalog, ctx, path, scope) -> dict
 cleanup(catalog, ctx, path, scope) -> dict
-export_intent(catalog, ctx, path, scope) -> dict | None
 status(catalog, ctx, scope, visiting=(), *, path=None) -> dict
 apply(plan, ctx) -> None
 ```
@@ -284,21 +282,11 @@ migration_settings = (("plugins.old_format", "plugins.new_format"),)
 
 Only source values saved in the selected file are transferred. Inherited defaults and environment overrides are not copied. Both keys must be declared non-secret settings. Conda normalizes source and destination types. A different existing mapped destination setting blocks migration, while an equivalent saved setting is preserved. Migration explicitly enables the replacement even if its boolean flag was saved as false. Multiple saved aliases require reconciliation. Source settings remain in the file.
 
-Migration plans the old flag off and the replacement flag on in one configuration write. It checks the combined configuration, replacement readiness, overrides, and dependents before mutation. Generic migration refuses deployments because their package and shell cleanup needs explicit handling. It never silently substitutes another feature while applying portable intent.
+Migration plans the old flag off and the replacement flag on in one configuration write. It checks the combined configuration, replacement readiness, overrides, and dependents before mutation. Generic migration refuses deployments because their package and shell cleanup needs explicit handling.
 
 `graduation="optional"` reports graduation while retaining enable and disable. `graduation="unconditional"` means the provider's behavior no longer consults its obsolete opt-in. The provider must implement that behavior change itself. Enable and disable then refuse flag changes and direct users to `cleanup`.
 
 Cleanup removes the saved obsolete flag, including recognized aliases, at the selected path. It leaves other settings and deployment resources alone. Keep registering the old boolean setting while supporting cleanup. Maturity `"stable"` alone does not imply graduation, and metadata never triggers automatic migration or cleanup.
-
-## Portable metadata
-
-`portable_settings` permits selected settings in version 1 intent documents. Export includes saved choices and the feature provider's entry-point identity. Unset choices and inherited values are omitted. No receipts, package lock, runtime evidence, or deployment ownership move to the destination.
-
-Portable values are normalized scalars. Validation rejects non-finite numbers, absolute or home-relative machine paths, file URLs, and URLs containing user information, query strings, fragments, or token-style `/t/` paths. These checks are conservative and can reject harmless URLs. They cannot identify an arbitrary token disguised as ordinary text, so the provider's allowlist must exclude secrets.
-
-Invalid saved portable values fail export instead of being copied. At apply time, unknown features, mismatched provider identities, retired or replaced features, unconditional features, unsupported scopes, and undeclared settings are rejected. Boolean choices and their portable settings are validated together before one configuration write.
-
-Deployment intent must be applied one feature at a time and cannot carry settings in that apply request. Configure those settings explicitly at the destination, then apply a choice-only entry. Exporting a deployment with saved portable settings can therefore produce an entry that needs adjustment before application. Do not advertise deployment intent as an unattended way to recreate package, cache, or shell state.
 
 ## Provider verification
 

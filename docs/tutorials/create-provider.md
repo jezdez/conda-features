@@ -32,7 +32,7 @@ name = "conda-provider-demo"
 version = "0.1.0"
 description = "A small conda-features provider"
 requires-python = ">=3.12"
-dependencies = ["conda>=26.9.4", "conda-features>=0.1.0"]
+dependencies = ["conda>=26.9.4", "conda-features>=0.2.0"]
 
 [project.entry-points.conda]
 conda-provider-demo = "conda_provider_demo.plugin"
@@ -44,7 +44,7 @@ conda-provider-demo = "conda_provider_demo.features"
 packages = ["src/conda_provider_demo"]
 ```
 
-The `conda` entry point supplies settings and the demonstration command. The separate `conda_features` entry point supplies the feature declaration. Keep both entry-point names stable because exported feature intent records the feature provider's entry-point name.
+The `conda` entry point supplies settings and the demonstration command. The separate `conda_features` entry point supplies the feature declaration. Its entry-point name identifies the provider in feature status.
 
 Use this `src/conda_provider_demo/__init__.py`:
 
@@ -128,7 +128,7 @@ The command requires `--file` and constructs `Context(search_path=(path,))` to m
 
 The optional behavior is in `run`, which chooses the configured greeting only when the flag is true. Its empty-value check also runs there. A `Feature` declaration does not intercept this command or enforce runtime checks for it. The parser uses conda's standard output options once, and JSON output is one complete object.
 
-Only public greeting text belongs in these settings. Do not adapt `demo_greeting` into a password or token setting. Configuration previews and portable export can show it.
+Only public greeting text belongs in these settings. Do not adapt `demo_greeting` into a password or token setting. Configuration queries and previews can show it.
 
 ## 3. Declare the feature
 
@@ -151,7 +151,6 @@ def conda_features() -> Iterable[Feature]:
         enabled_setting="plugins.demo_enabled",
         settings=("plugins.demo_greeting",),
         required_settings=("plugins.demo_greeting",),
-        portable_settings=("plugins.demo_greeting",),
         scopes=("user",),
         guidance="Run conda provider-demo --file PATH --name Ada.",
     )
@@ -159,7 +158,7 @@ def conda_features() -> Iterable[Feature]:
 
 The feature starts at the default maturity, `experimental`. Its boolean setting defaults to false, and its required greeting has the nonempty default `Welcome`. A required setting's effective value cannot be `None` or an empty string when enabling. The default satisfies this check, so enable can succeed before an explicit greeting is saved.
 
-`portable_settings` makes the public greeting eligible for export when it is saved locally. The enabled flag is not in `settings` because users change it through enable and disable. The declaration permits only user scope, which includes an explicit `--file` destination.
+The enabled flag is not in `settings` because users change it through enable and disable. The declaration permits only user scope, which includes an explicit `--file` destination.
 
 Keep this hook cheap. It yields local declarations without contacting a service, reading credentials, or performing setup. Import its `hookimpl` from `conda_features.hooks`. The hooks in `plugin.py` use conda's decorator.
 
@@ -273,21 +272,25 @@ The command returns:
 
 Disable saves a false flag. It does not remove `demo_greeting`, uninstall either project, or delete the configuration file. A later enable reuses `Goodbye`. Boolean features do not create deployment receipts.
 
-## 8. Transfer an explicit choice
+## 8. Repeat the setup in another file
 
-The greeting is declared portable. Export the saved enabled choice and greeting, then preview applying them to a second standalone file:
+Read the saved greeting, then configure and enable the feature in a second standalone file:
 
 ```sh
-"$DEMO/runtime/bin/python" -m conda feature enable demo-greeting --file "$CONFIG" --yes
-"$DEMO/runtime/bin/python" -m conda feature export --file "$CONFIG" > "$DEMO/intent.json"
-"$DEMO/runtime/bin/python" -m conda feature apply "$DEMO/intent.json" \
+"$DEMO/runtime/bin/python" -m conda feature config demo-greeting \
+  --get plugins.demo_greeting --file "$CONFIG"
+"$DEMO/runtime/bin/python" -m conda feature config demo-greeting \
+  --set plugins.demo_greeting Goodbye --file "$DEMO/other.yaml" --dry-run
+"$DEMO/runtime/bin/python" -m conda feature config demo-greeting \
+  --set plugins.demo_greeting Goodbye --file "$DEMO/other.yaml" --yes
+"$DEMO/runtime/bin/python" -m conda feature enable demo-greeting \
   --file "$DEMO/other.yaml" --dry-run
-"$DEMO/runtime/bin/python" -m conda feature apply "$DEMO/intent.json" \
+"$DEMO/runtime/bin/python" -m conda feature enable demo-greeting \
   --file "$DEMO/other.yaml" --yes
 "$DEMO/runtime/bin/python" -m conda provider-demo --file "$DEMO/other.yaml" --name Ada
 ```
 
-The last command prints `Goodbye, Ada!`. The export includes the saved greeting because it is listed in `portable_settings`. It includes no package installation, receipt, or observed runtime status. Applying on another machine requires installing the same provider identity there first. The destination is explicit even though the intent document records its source scope.
+The last command prints `Goodbye, Ada!`. The original file remains disabled with its greeting preserved. The second file now saves the greeting and an enabled flag. To repeat this setup on another machine, install the provider in the conda runtime there first, then run the configuration and enable commands with that machine's destination.
 
 ## Adapt the provider
 
@@ -324,4 +327,4 @@ After finishing, close processes using the demo runtime and remove that environm
 conda remove --prefix "$DEMO/runtime" --all --yes
 ```
 
-The temporary directory still contains your demonstration configuration, intent, and lock files. Inspect and delete only the directory recorded in `$DEMO` when no longer needed. Your provider source directory and `conda-features` checkout remain unchanged by environment removal. Conda's shared package caches may remain as well.
+The temporary directory still contains your demonstration configuration and lock files. Inspect and delete only the directory recorded in `$DEMO` when no longer needed. Your provider source directory and `conda-features` checkout remain unchanged by environment removal. Conda's shared package caches may remain as well.

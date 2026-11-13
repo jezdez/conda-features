@@ -14,33 +14,46 @@ If Python cannot import conda, switch to the host interpreter before installing 
 
 Use an absolute path to the host Python in the commands below if needed. If bare `conda` selects another installation, use `python -m conda` with that same host interpreter for feature commands too. Do not install into a conda runtime managed by another application without following that application's installation guidance.
 
-## Install release 0.1.0
+## Install release 0.2.0
 
-The core package is published on [PyPI](https://pypi.org/project/conda-features/0.1.0/) and [Anaconda.org](https://anaconda.org/jezdez/conda-features). Choose one installation method.
+The core package is distributed through [PyPI](https://pypi.org/project/conda-features/) and [Anaconda.org](https://anaconda.org/jezdez/conda-features). Choose one installation method.
 
 For a conventional conda installation whose runtime is base:
 
 ```sh
 conda install --name base --override-channels --channel conda-forge \
-  --channel jezdez conda-features=0.1.0
+  --channel jezdez conda-features=0.2.0
 ```
 
 The conda package declares its conda runtime dependency. Review the proposed transaction before accepting it. If your conda host is not base, select the environment that hosts it. The active project environment may not be the host.
 
-For pip, select the host interpreter as described above:
+## Optional: install the PyPI wheel through conda-pypi
+
+Use this route if you prefer the PyPI distribution. The native package above does not require `conda-pypi`. To use the wheel channel, first install `conda-pypi` and the Rattler solver in the conda host. For a conventional base-hosted installation:
 
 ```sh
-python -m pip install conda-features==0.1.0
+conda install --name base --override-channels --channel conda-forge \
+  conda-pypi conda-rattler-solver
 ```
 
-The PyPI package does not install conda through pip, so conda must already be available in that interpreter. Neither method needs Pixi or a source checkout.
+Then install the released wheel with conda:
+
+```sh
+conda install --name base --solver rattler --override-channels \
+  --channel conda-forge --channel conda-pypi \
+  "conda-pypi::conda-features=0.2.0"
+```
+
+The channel-qualified package specification selects the PyPI wheel rather than the native conda package. The solver and channels apply to this command only, so these instructions do not change your persistent solver or channel settings. Review both transactions before accepting them. Use the actual host environment instead of base when your installation differs.
+
+This setup must work before installing `conda-features` through PyPI. You cannot use its own feature command to bootstrap it. See [conda-pypi's usage guide](https://github.com/conda/conda-pypi#using-conda-pypi) for wheel-channel support. Neither released-package route needs pip, Pixi, or a source checkout.
 
 ## Add the repository's deployment examples
 
-The core installs the command without feature declarations. `conda-features-examples` is available only from source, not from PyPI or Anaconda.org. To try its PyPI and completion deployments, install it from the matching repository tag into the same runtime. You need Git and pip:
+The core installs the command without feature declarations. `conda-features-examples` is available only from source, not from PyPI or Anaconda.org, so the wheel channel cannot supply it. To try its PyPI and completion deployments, install it from the matching repository tag into the same runtime. This separate source-installation step needs Git and pip:
 
 ```sh
-python -m pip install "conda-features-examples @ git+https://github.com/jezdez/conda-features.git@0.1.0#subdirectory=packages/conda-features-examples"
+python -m pip install "conda-features-examples @ git+https://github.com/jezdez/conda-features.git@0.2.0#subdirectory=packages/conda-features-examples"
 ```
 
 For a fixed source revision, replace the tag with a reviewed commit SHA. Contributors testing unreleased code can install from a checkout using the [development guide](develop.md).

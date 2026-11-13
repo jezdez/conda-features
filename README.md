@@ -6,24 +6,27 @@ Install a provider to add features to the catalog. The source-only `conda-featur
 
 ## Install and use
 
-`conda-features` 0.1.0 is available on [PyPI](https://pypi.org/project/conda-features/) and the [jezdez Anaconda channel](https://anaconda.org/jezdez/conda-features). Use Python 3.12 or newer with conda 26.9.4 or newer. Install into the Python environment running conda, not just an environment you want to configure. For a conventional installation hosted in base:
+Install `conda-features` from the [jezdez Anaconda channel](https://anaconda.org/jezdez/conda-features), or use its [PyPI distribution](https://pypi.org/project/conda-features/) through conda-pypi. Use Python 3.12 or newer with conda 26.9.4 or newer. Install into the Python environment running conda, not just an environment you want to configure. For a conventional installation hosted in base:
 
 ```sh
 conda install --name base --override-channels --channel conda-forge \
-  --channel jezdez conda-features=0.1.0
+  --channel jezdez conda-features=0.2.0
 ```
 
-Alternatively, with the host Python:
+If your conda host already has `conda-pypi` and the Rattler solver, you can install the PyPI wheel through conda instead:
 
 ```sh
-python -m conda --version
-python -m pip install conda-features==0.1.0
+conda install --name base --solver rattler --override-channels \
+  --channel conda-forge --channel conda-pypi \
+  "conda-pypi::conda-features=0.2.0"
 ```
 
-The examples distribution is intentionally unpublished. To use its real deployment declarations, install it from the repository into the same runtime:
+Both commands assume conda runs from base. See [Installation](docs/how-to/install.md) for other hosts and how to set up the optional PyPI route. Neither command requires pip to install the released package.
+
+The examples distribution is intentionally unpublished, so the PyPI channel cannot supply it. Its source installation is separate and still uses Git and the host Python's pip:
 
 ```sh
-python -m pip install "conda-features-examples @ git+https://github.com/jezdez/conda-features.git@0.1.0#subdirectory=packages/conda-features-examples"
+python -m pip install "conda-features-examples @ git+https://github.com/jezdez/conda-features.git@0.2.0#subdirectory=packages/conda-features-examples"
 ```
 
 Then use that installation's conda command:
@@ -54,7 +57,6 @@ Contributor setup and documentation build commands are in [Development](docs/how
 - [Build your first provider](docs/tutorials/create-provider.md)
 - [Command reference](docs/reference/cli.md)
 - [Provider and step API](docs/reference/providers.md)
-- [Portable intent format](docs/reference/intent.md)
 - [Configuration, ownership, and recovery explained](docs/explanation/deployment.md)
 - [Development and verification](docs/how-to/develop.md)
 
@@ -75,16 +77,14 @@ conda feature diagnose --json
 conda feature repair FEATURE --dry-run
 conda feature migrate FEATURE --dry-run
 conda feature cleanup FEATURE --dry-run
-conda feature export --file source.yaml
-conda feature apply intent.json --file destination.yaml --dry-run
 ```
 
 Use an installed feature ID in place of `FEATURE`. Mutations require confirmation or `--yes`. Deployment dry-runs may solve packages and refresh caches without installing packages or writing managed resources. `--file` isolates conda configuration, not package installation or shell files.
 
-`config --set` is new in the development version. Release 0.1.0 uses `conda feature configure FEATURE KEY=VALUE`, which remains supported.
+`config` is available from 0.2.0. Release 0.1.0 uses `conda feature configure FEATURE KEY=VALUE`, which remains supported. The custom intent export/apply format from 0.1.0 was removed in 0.2.0.
 
 ## Current limits
 
-There is no authentication integration, telemetry, remote catalog, or automatic migration. Environment checks cover the targets you select and your conda registry. They can miss unregistered environments. Status reports configuration and setup checks, but does not observe provider execution. Package and shell migrations need provider-specific code. Apply deployment intent one feature at a time.
+There is no authentication integration, telemetry, remote catalog, or automatic migration. Environment checks cover the targets you select and your conda registry. They can miss unregistered environments. Status reports configuration and setup checks, but does not observe provider execution. Package and shell migrations need provider-specific code.
 
 CI runs core tests on Linux x64, Windows x64, and ARM macOS, with real-provider integration on Linux. Other conda versions and shell/platform combinations may not have been tested. Check the workflow results for the revision you use.
