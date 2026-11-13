@@ -11,6 +11,7 @@ from conda.cli.condarc import ConfigurationFile
 from conda.common.configuration import YamlRawParameter
 from conda.models.version import VersionSpec
 
+from .operations import lifecycle
 from .operations.configuration import apply_change, plan_change
 from .operations.dependencies import plan_prerequisites, prerequisite_order
 from .operations.settings import setting_context, value
@@ -50,6 +51,8 @@ class Feature:
     replacement: str | None = None
     guidance: str = ""
     steps: tuple[Step, ...] = ()
+    migration_settings: tuple[tuple[str, str], ...] = ()
+    graduation: str | None = None
 
     def validate_deployment_methods(self) -> None:
         for method in ("enable", "disable", "status", "apply"):
@@ -74,6 +77,10 @@ class Feature:
         with_dependencies: bool = False,
     ) -> dict[str, Any]:
         """Plan an opt-in. The caller confirms and applies the returned plan."""
+        if self.graduation == "unconditional":
+            raise CondaError(
+                "This feature is now unconditional. Use cleanup to remove its obsolete opt-in."
+            )
         if with_dependencies:
             selected = prerequisite_order(catalog, ctx, scope, self.name)
             if len(selected) > 1 and any(
@@ -102,6 +109,10 @@ class Feature:
         self, catalog: Catalog, ctx: Context, path: Path, scope: str
     ) -> dict[str, Any]:
         """Plan a dependency-safe opt-out without removing other settings."""
+        if self.graduation == "unconditional":
+            raise CondaError(
+                "This feature is now unconditional and cannot be disabled here. Use cleanup to remove the obsolete opt-in."
+            )
         if self.steps:
             return runner.plan(self, catalog, ctx, path, scope, "disable")
         return plan_change(catalog, ctx, path, scope, "disable", self.name)
@@ -134,6 +145,16 @@ class Feature:
                 "No enabled choice is saved at this scope. Use enable explicitly instead of repair."
             )
         return self.enable(catalog, ctx, path, scope)
+
+    def migrate(
+        self, catalog: Catalog, ctx: Context, path: Path, scope: str
+    ) -> dict[str, Any]:
+        return lifecycle.migrate(self, catalog, ctx, path, scope)
+
+    def cleanup(
+        self, catalog: Catalog, ctx: Context, path: Path, scope: str
+    ) -> dict[str, Any]:
+        return lifecycle.cleanup(self, catalog, ctx, path, scope)
 
     def status(
         self,
@@ -200,13 +221,15 @@ class Feature:
                     )
                     if (
                         dependency_status["effective"] != "enabled"
-                        or dependency_status["readiness"] != "ready"
-                    ):
+                        and catalog[dependency][1].graduation != "unconditional"
+                    ) or dependency_status["readiness"] != "ready":
                         reasons.append(f"Requires enabled feature {dependency}.")
                         reasons.extend(dependency_status["reasons"])
         for other, (_, other_feature) in catalog.items():
             if (other in self.conflicts or self.name in other_feature.conflicts) and (
-                value(ctx, other_feature.enabled_setting)
+                True
+                if other_feature.graduation == "unconditional"
+                else value(ctx, other_feature.enabled_setting)
                 if other_feature.enabled_setting
                 else not any(step.check(ctx, path) for step in other_feature.steps)
                 if other_feature.steps
@@ -241,6 +264,15 @@ class Feature:
             "provider": provider,
             "description": self.description,
             "maturity": self.maturity,
+            "lifecycle": "graduated"
+            if self.graduation
+            else "replaced"
+            if self.replacement
+            else "retired"
+            if self.retired
+            else "available",
+            "graduation": self.graduation,
+            "replacement": self.replacement,
             "requested": requested,
             "effective": "enabled" if effective else "disabled",
             "runtime": "unknown",

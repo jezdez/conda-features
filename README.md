@@ -182,6 +182,14 @@ Declarations should be cheap to import and must not read credentials, contact se
 
 `conda doctor features --prefix PATH` runs the same diagnostics for the environment configuration. `conda doctor features --fix --prefix PATH` previews each repair and uses conda's confirmation prompt. Doctor manages its own text report. Use `feature diagnose --json` for a structured result. Receipts beside other configuration files are inspected by selecting those files explicitly, not by scanning the filesystem.
 
+## Replacement and Graduation
+
+Providers can retain retired feature IDs and declare a `replacement`. `conda feature migrate OLD --dry-run` previews disabling the old opt-in and enabling the declared replacement in one configuration write. It requires both providers to be installed and support the selected scope. Apply only after confirmation. Enabled dependents of the old feature block migration until their requirements are resolved.
+
+Providers explicitly declare transferable non-secret scalar settings with `migration_settings=(("old_key", "new_key"),)`. Only values saved in the selected file are transferred, and existing destination choices are preserved. Conda validates types and the combined result. Source settings remain available for manual cleanup. Package and shell deployment migrations require explicit provider-specific handling and are refused by this generic operation.
+
+`graduation="optional"` keeps enable and disable available. `graduation="unconditional"` marks an obsolete boolean opt-in whose functionality can no longer be disabled here. `conda feature cleanup NAME --dry-run` previews removal of that saved flag, and confirmation is required to apply it. Cleanup leaves unrelated settings and deployment resources alone. Providers must retain the old setting declaration while supporting cleanup. There are no automatic migrations.
+
 ## Development
 
 ```sh
@@ -196,7 +204,7 @@ Tests use conda's CLI, context, and environment fixtures. Subprocess tests verif
 
 ## Current Limits
 
-- No authentication, migrations, telemetry, or export. Automatic prerequisite installation is provided by the two deployment adapters, not a remote feature catalog.
+- No authentication, automatic migrations, telemetry, or export. Automatic prerequisite installation is provided by the two deployment adapters, not a remote feature catalog.
 - Environment checks cover explicit targets and the current user's registry, not every environment on the machine. Prerequisite opt-ins require `--with-dependencies` and confirmation.
 - Runtime activity is not observed. Providers must check their own settings and prerequisites before executing optional behavior.
 - Native verification has covered macOS with conda 26.9.4. The lockfile also includes Linux and Windows, but those platforms have not been tested natively.

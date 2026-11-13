@@ -18,6 +18,8 @@ def configure_parser(parser: ArgumentParser) -> None:
         "configure",
         "diagnose",
         "repair",
+        "migrate",
+        "cleanup",
     ):
         command = commands.add_parser(name)
         add_output_and_prompt_options(command)

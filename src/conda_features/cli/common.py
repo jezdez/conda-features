@@ -32,6 +32,7 @@ def confirm_and_apply(args, catalog, ctx, plan):
             "changes",
             "checked_environments",
             "discovery",
+            "remove",
         )
         if key in plan
     }

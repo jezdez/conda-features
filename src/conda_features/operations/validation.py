@@ -26,6 +26,16 @@ def validate_catalog(catalog: Catalog, ctx: Context) -> None:
             raise CondaError(f"Invalid feature ID: {name!r}")
         if feature.maturity not in ("experimental", "preview", "stable"):
             raise CondaError(f"Invalid maturity for {name}.")
+        if feature.graduation not in (None, "optional", "unconditional"):
+            raise CondaError(f"Invalid graduation for {name}.")
+        if feature.graduation == "unconditional" and feature.steps:
+            raise CondaError(
+                "Graduation cleanup supports boolean opt-ins, not deployment resource removal."
+            )
+        if len({destination for _, destination in feature.migration_settings}) != len(
+            feature.migration_settings
+        ):
+            raise CondaError(f"Duplicate migration setting destinations for {name}.")
         if not feature.scopes or set(feature.scopes) - {
             "user",
             "system",

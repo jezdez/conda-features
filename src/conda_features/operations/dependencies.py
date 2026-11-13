@@ -38,7 +38,10 @@ def prerequisite_order(
         feature = catalog[key][1]
         if key != name:
             status = feature.status(catalog, ctx, None)
-            if status["effective"] == "enabled" and not feature.retired:
+            if (
+                status["effective"] == "enabled"
+                or feature.graduation == "unconditional"
+            ) and not feature.retired:
                 return
         if scope not in feature.scopes:
             raise CondaError(
@@ -62,7 +65,10 @@ def projected_context(plan: dict[str, Any], ctx: Context) -> Context:
                     step.update_config(config, item)
         else:
             for key, val in child["changes"].items():
-                config.set_key(key, val)
+                if key not in child.get("remove", ()):
+                    config.set_key(key, val)
+            for key in child.get("remove", ()):
+                config.remove_key(key)
     return prospective_context(ctx, path, config.content)
 
 
@@ -166,6 +172,8 @@ def check_affected(
                 if dependency not in catalog:
                     continue
                 prerequisite = catalog[dependency][1]
+                if prerequisite.graduation == "unconditional":
+                    continue
                 old = prerequisite.status(catalog, before, None)
                 new = prerequisite.status(catalog, after, None)
                 if old["effective"] == "enabled" and new["effective"] != "enabled":

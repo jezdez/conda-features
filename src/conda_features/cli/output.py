@@ -52,6 +52,16 @@ def render(result: dict) -> None:
             print(f"{key.capitalize()}: {result[key]}")
         print(f"Effective setting: {result['effective']}")
         print("Runtime: unknown (provider execution is not observed)")
+        if result.get("lifecycle") not in (None, "available"):
+            print(f"Lifecycle: {result['lifecycle']}")
+        if result.get("replacement"):
+            print(
+                f"Replacement: {result['replacement']}. Use feature migrate to preview the change."
+            )
+        if result.get("graduation") == "unconditional":
+            print(
+                "Functionality is now unconditional. Cleanup removes only the obsolete opt-in, not the functionality."
+            )
         for key, sources in result["sources"].items():
             print(f"{key}: sources {', '.join(sources) or 'default'}")
         for reason in result["reasons"]:
