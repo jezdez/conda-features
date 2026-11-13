@@ -78,7 +78,7 @@ design
 | Your task | Read |
 | --- | --- |
 | Try a complete deployment without editing your usual configuration | [First deployment tutorial](tutorials/first-deployment.md) |
-| Install the plugin into the correct conda runtime | [Installation](how-to/install.md) |
+| Install the plugin into your conda runtime | [Installation](how-to/install.md) |
 | Choose a scope and protect other environments | [Manage features](how-to/manage-features.md) |
 | Deploy PyPI support or shell completion | [Real providers](how-to/deploy-providers.md) |
 | Diagnose drift or recover interrupted setup | [Troubleshooting and recovery](how-to/recover.md) |

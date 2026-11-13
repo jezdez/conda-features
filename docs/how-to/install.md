@@ -1,53 +1,50 @@
 # Install into the conda runtime
 
-Install `conda-features` into the Python environment that runs conda. Installing it only into a project environment does not make it discoverable by a different conda executable.
+You need Python 3.12 or newer and conda 26.9.4 or newer. Install `conda-features` into the Python environment that runs conda. Installing it only into a project environment does not make it discoverable by a different conda executable.
 
-## From this checkout with Pixi
+## Select the host interpreter
 
-```sh
-pixi install
-pixi run python -m conda feature --help
-```
-
-The default environment installs the core plugin but no example providers. An empty result from `feature list` is expected.
-
-To make the real provider declarations available:
+Run this with the Python interpreter belonging to your conda installation:
 
 ```sh
-pixi install -e examples
-pixi run -e examples python -m conda feature list
+python -m conda --version
 ```
 
-The `examples` environment contains the declarations, not necessarily the upstream deployment prerequisites. An enable preview may propose installing those prerequisites into that environment. Use `integration` instead to provision the prerequisites through Pixi before trying a deployment.
+If Python cannot import conda, stop and select the host interpreter rather than installing the plugin there. In a conventional conda installation, that interpreter is in base. Activating a project environment can put a different Python on your path while leaving the `conda` shell command connected to the original installation. Installations with a separate managed conda runtime may have a different host from base.
 
-## Into an existing installation
+Use an absolute path to the host Python in the commands below if needed. If bare `conda` selects another installation, use `python -m conda` with that same host interpreter for feature commands too. Do not install into a conda runtime managed by another application without following that application's installation guidance.
 
-Use that installation's Python, with conda 26.9.4 or newer already installed:
+## Install the current source version
+
+Neither `conda-features` nor `conda-features-examples` currently has a published PyPI release. Use pip with Git source URLs. This requires Git and pip in addition to the existing conda runtime. It does not require a repository checkout or Pixi.
 
 ```sh
-python -m pip install .
-python -m conda feature --help
+python -m pip install "conda-features @ git+https://github.com/jezdez/conda-features.git@main"
 ```
 
-These are source-checkout instructions, not a claim that a release is available on PyPI or a conda channel. Pip is not a way to bootstrap the required conda runtime.
-
-To install the example declarations from the checkout into the same runtime:
+This installs the command, but no feature declarations. Install the bundled deployment providers into the same runtime:
 
 ```sh
-python -m pip install ./packages/conda-features-examples
-python -m conda feature list
+python -m pip install "conda-features-examples @ git+https://github.com/jezdez/conda-features.git@main#subdirectory=packages/conda-features-examples"
 ```
 
-Installing declarations alone does not enable either feature. Read the [provider deployment guide](deploy-providers.md) before confirming their setup.
+These commands install the current `main`, not a stable release. For a reproducible installation, replace `main` in both URLs with the same reviewed commit SHA. Pip installs these Python distributions into an existing runtime. It cannot bootstrap the required conda installation.
 
-## Check discovery
+The examples distribution contains working deployment declarations, despite its name. Installing it does not select a solver, add a channel, install a completion hook, or preinstall all deployment prerequisites. Those changes are proposed by `conda feature enable` and require confirmation.
+
+## Check discovery and preview a feature
 
 ```sh
-python -m conda feature list --json
-python -m conda feature explain conda-pypi --json
+conda feature list
+conda feature explain conda-pypi
+conda feature enable conda-pypi --user --dry-run
 ```
 
-The second command requires the examples distribution. If the subcommand is missing, check which Python and conda executables your shell selects and whether third-party plugins have been disabled. If the command exists but the catalog is empty, install a feature provider into the same runtime. Provider errors name the failing entry point. A feature hook must use `conda_features.hooks.hookimpl`, not conda's hook marker.
+Use the same host's `python -m conda` instead if the bare command points elsewhere. The preview names package changes and their host prefix separately from the target configuration file. Review it before rerunning without `--dry-run`.
+
+If the subcommand is missing, check your interpreter and whether third-party plugins are disabled. If the command exists but the catalog is empty, check that a feature provider is installed in the same runtime. Provider errors name the failing entry point. A feature hook must use `conda_features.hooks.hookimpl`, not conda's hook marker.
+
+Continue with [your first deployment](../tutorials/first-deployment.md) or the [real provider deployment guide](deploy-providers.md). Repository contributors should use the separate [development guide](develop.md) for Pixi environments and tests.
 
 ## Upgrade without losing recovery information
 

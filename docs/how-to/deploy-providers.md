@@ -2,7 +2,7 @@
 
 These are working deployment providers, not simulations. Their declarations currently live in the separate `conda-features-examples` distribution. Installing `conda-pypi` or `conda-completion` alone does not imply those upstream packages already publish this feature interface.
 
-Use `pixi run -e examples python -m conda` in place of `conda` below when working from the examples environment. Use `integration` if you want Pixi to supply the tested upstream prerequisites first. Package installation always targets the Python environment hosting the command, regardless of the configuration destination.
+First [install the plugin and deployment declarations](install.md) in the conda installation you use. Run the commands below with that installation's `conda`, or its host interpreter's `python -m conda`. Enable checks and proposes installing any missing upstream prerequisites. Package installation always targets the Python environment hosting the command, regardless of the configuration destination.
 
 ## PyPI support
 
@@ -71,10 +71,6 @@ Disable removes only a block matching the receipt. It does not need to reinstall
 
 ## Experiment without touching your normal setup
 
-`--file` alone is insufficient isolation for completion. It changes where conda settings and receipts go, but the hook still targets the current home directory. Use a disposable runtime and isolated home, or run the maintained integration tests:
+`--file` alone is insufficient isolation for completion. It changes where conda settings and receipts go, but the hook still targets the current home directory. Start with `--dry-run` to inspect the exact destinations without changing managed resources. Installing missing prerequisites can still be necessary when you later approve setup.
 
-```sh
-pixi run -e integration test-integration
-```
-
-Those tests prepare temporary homes and real shell files. The opt-in missing-package test actually installs into its test runtime and must not run against your normal conda installation. See [development](develop.md).
+For a full installation experiment, use a separate conda installation and isolated home. Do not assume that activating a project environment isolates the conda host or shell configuration. Automated tests and their disposable runtime setup belong to the [contributor guide](develop.md).
