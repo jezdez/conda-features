@@ -50,10 +50,20 @@ conda-completion = "0.3.2.*"
 [tool.pixi.feature.integration.tasks]
 test-integration = "pytest tests/test_examples.py"
 
+[tool.pixi.feature.docs.dependencies]
+sphinx = ">=8"
+myst-parser = ">=4"
+conda-sphinx-theme = ">=0.3"
+sphinx-design = ">=0.6"
+
+[tool.pixi.feature.docs.tasks]
+docs = "sphinx-build -W --keep-going -n -b dirhtml docs docs/_build/dirhtml"
+
 [tool.pixi.environments]
 default = { features = [], solve-group = "default" }
 examples = { features = ["examples"], solve-group = "default" }
 integration = { features = ["examples", "integration"] }
+docs = { features = ["docs"], solve-group = "default" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
