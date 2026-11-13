@@ -25,6 +25,10 @@ For normal scopes, conda determines configuration precedence. Another file or an
 
 ## Enable and configure
 
+This recording uses an isolated configuration and the completion provider's declared shell setting. It changes only that setting, not shell startup files.
+
+![Read and change a declared feature setting with conda feature config](../../demos/configuration.gif)
+
 ```sh
 conda feature enable FEATURE --prefix /path/to/environment --dry-run
 conda feature enable FEATURE --prefix /path/to/environment --yes

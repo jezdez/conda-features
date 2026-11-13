@@ -127,6 +127,8 @@ Removes saved obsolete boolean opt-ins for features declared unconditionally gra
 
 ## Results and exit statuses
 
+The development version uses Rich tables and the conda-workspaces status palette: blue headings, cyan completed or ready states, yellow previews and warnings, and red errors. Labels carry the meaning without color. Narrow terminals use per-feature records rather than truncating names and states. Human-readable paths inside your home directory use `~/`, while JSON retains exact paths. Redirected output has no color escapes by default, and Rich respects `NO_COLOR`. Dynamic provider text is literal, with terminal control characters shown as escape text. JSON output bypasses Rich and keeps its existing structure.
+
 Mutation results include the operation, selected feature IDs, destination path, scope, public changes, and a message. Depending on the operation, they can also include removal keys, post-operation status, checked environments, and the scope of discovery. Private solved transactions, fingerprints, and recovery data are not returned as public plans.
 
 Successful queries and previews exit `0`. Handled operation errors exit `1`. Argument parsing errors exit `2`. An empty diagnostic problem list is not required for a successful diagnostic query. Unexpected runtime failures or conda-level failures may be handled by conda itself.

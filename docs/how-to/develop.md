@@ -18,6 +18,7 @@ The integration environment includes upstream dependencies for testing provider 
 | `default` | Core plugin, conda, pytest, Ruff, ty, build tools | Core tests and quality checks |
 | `examples` | Default dependencies plus `conda-features-examples` | Provider discovery and isolated adapter tests |
 | `integration` | Example providers plus real PyPI, Rattler, and completion prerequisites | Real configuration and shell deployment tests |
+| `demos` | Integration dependencies plus VHS, ttyd, ffmpeg, and Bash | Optional terminal recordings on Linux x64 or ARM macOS |
 
 The lockfile supports `linux-64`, `win-64`, and `osx-arm64`. Core CI uses native runners for those platforms. Provider integration tests and wheel builds run on Linux in CI. Test platform-specific shell behavior on the platform it targets, even when local tests pass.
 
@@ -72,3 +73,22 @@ pixi run -e docs docs
 ```
 
 The build writes directory-style HTML to `docs/_build/dirhtml`, treats warnings as errors, and checks unresolved references. It does not execute shell examples, so verify commands separately against the installed plugin. Use temporary configuration and homes for anything with side effects, never your normal shell profile. Check the rendered navigation and code blocks at desktop and mobile sizes.
+
+## Record terminal demos
+
+Install [JetBrains Mono](https://www.jetbrains.com/lp/mono/) locally before recording. The recording tools come from conda-forge, but the font is a separate prerequisite. VHS also needs a working Chromium browser and may download one on its first run. Native Windows recording is not configured.
+
+```sh
+pixi install -e demos
+pixi run -e demos test-demos
+pixi run -e demos demos
+pixi run -e demos demos configuration
+```
+
+Run these commands from the checkout root. With no name, the task records both `demos/feature-management.gif` and `demos/configuration.gif`. Pass `feature-management` or `configuration` to regenerate one. Each tape sources `demos/_settings.tape`, which uses the conda-workspaces font, dimensions, theme, and green prompt.
+
+The tapes execute the installed development plugin and source-only example providers. Prerequisite packages are installed by Pixi before recording. Hidden preparation refuses to continue if any are missing, so the GIFs do not include package installation. The feature-management recording previews, enables, and disables PyPI support in `~/demo/.condarc`. The configuration recording reads and changes the completion shell setting without deploying a completion hook.
+
+Preparation creates a disposable home, configuration, and caches under `demos/.scratch/`. A private Python startup module restricts conda's configuration search paths in every recording subprocess, including default arguments captured during import. Inherited conda settings are cleared. Bash runs without profiles, and cleanup removes only the directory allocated for that recording. `test-demos` checks this isolation, real command execution, unchanged installed packages, and the absence of shell hooks. Do not source `_prep.sh` into your normal interactive shell.
+
+Keep the tapes and generated GIFs together in version control. After recording, inspect the playback for errors, clipped text, personal paths, and enough reading time, then build the docs with `pixi run -e docs docs`. These recordings demonstrate behavior, not command timings. An interrupted recording may leave a directory under the ignored `demos/.scratch/` directory for manual cleanup.

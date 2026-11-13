@@ -64,6 +64,10 @@ The [design document](DESIGN.md) includes goals beyond the current implementatio
 
 ## Commands at a glance
 
+![Feature management with Rich output](demos/feature-management.gif)
+
+The demo uses the development version with prerequisites already installed and a temporary configuration. See the documentation for full installation steps.
+
 ```text
 conda feature list
 conda feature explain FEATURE

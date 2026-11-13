@@ -8,6 +8,10 @@ The catalog is empty until you install a provider. The source-only `conda-featur
 
 ## Start here
 
+The recording below shows the development version's Rich output with the real PyPI provider. Recording preparation installs prerequisites and isolates configuration before the visible commands run. It does not show installing packages from PyPI.
+
+![Feature discovery, preview, deployment, and cleanup in an isolated configuration](../demos/feature-management.gif)
+
 ::::{grid} 1 1 2 2
 :gutter: 3
 

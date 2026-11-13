@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Use Rich for human-readable output, following conda-workspaces' blue, cyan, and yellow status colors. JSON output is unchanged. Provider text is rendered literally and terminal control characters are escaped.
+- Add reproducible VHS recordings of feature management and configuration, with isolated demo setup and matching conda-workspaces terminal styling.
+
 ## 0.2.0 - 2026-11-13
 
 - Breaking: remove `conda feature export`, `conda feature apply`, the custom intent JSON format, and `Feature.portable_settings`/`export_intent`. There is no deprecation period or replacement manifest. Use conda configuration and explicit feature commands. Existing local deployment receipts, `--json` output, and the provider's `Feature.apply` method are unchanged. Release 0.1.0 artifacts retain the old commands.
