@@ -1,13 +1,24 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
 name = "conda-features"
 version = "0.1.0"
 description = "Discover and configure optional features from installed conda plugins"
+readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
-dependencies = ["conda>=26.9.4", "filelock>=3.16", "pluggy>=1.5"]
+dependencies = ["filelock>=3.16", "pluggy>=1.5"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/README.md", "/LICENSE", "/pyproject.toml"]
+
+[project.urls]
+Homepage = "https://github.com/jezdez/conda-features"
+Documentation = "https://jezdez.github.io/conda-features/"
+Issues = "https://github.com/jezdez/conda-features/issues"
 
 [project.entry-points.conda]
 conda-features = "conda_features.plugin"
@@ -59,11 +70,19 @@ sphinx-design = ">=0.6"
 [tool.pixi.feature.docs.tasks]
 docs = "sphinx-build -W --keep-going -n -b dirhtml docs docs/_build/dirhtml"
 
+[tool.pixi.feature.release.dependencies]
+python = "3.12.*"
+python-build = ">=1.2"
+hatchling = ">=1.27"
+twine = ">=6.2"
+rattler-build = ">=0.74"
+
 [tool.pixi.environments]
 default = { features = [], solve-group = "default" }
 examples = { features = ["examples"], solve-group = "default" }
 integration = { features = ["examples", "integration"] }
 docs = { features = ["docs"], solve-group = "default" }
+release = { features = ["release"], no-default-feature = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,259 @@
+name: Publish conda package
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Validated bare release version from release.yml
+        required: true
+        type: string
+      source-sha256:
+        description: SHA-256 of the core source distribution published to PyPI
+        required: true
+        type: string
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  RELEASE_VERSION: ${{ inputs.version }}
+  CORE_SOURCE_SHA256: ${{ inputs.source-sha256 }}
+
+concurrency:
+  group: publish-conda-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the core package from its verified PyPI source
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      tag-sha: ${{ steps.tag.outputs.tag-sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate release tag and source digests
+        id: tag
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          [[ "$CORE_SOURCE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          test "$GITHUB_REF" = "refs/tags/$RELEASE_VERSION"
+          test "$(git cat-file -t "refs/tags/$RELEASE_VERSION")" = tag
+          test "$(git rev-parse "refs/tags/${RELEASE_VERSION}^{commit}")" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          printf 'tag-sha=%s\n' "$(git rev-parse "refs/tags/$RELEASE_VERSION")" >> "$GITHUB_OUTPUT"
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: v0.84.2
+          environments: release
+          locked: true
+          cache: false
+      - name: Validate core release version
+        run: test "$(pixi run --locked -e release python -m hatchling version)" = "$RELEASE_VERSION"
+      - name: Build recipes from hashed PyPI source distributions
+        run: |
+          set -euo pipefail
+          test ! -e conda-dist
+          pixi run --locked -e release rattler-build build --no-config \
+            --recipe recipe/core --output-dir conda-dist --channel conda-forge
+      - name: Verify core conda artifact
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(conda-dist/noarch/*.conda)
+          test "${#packages[@]}" -eq 1
+          for name in conda-features; do
+            packages=(conda-dist/noarch/"$name-$RELEASE_VERSION-"*.conda)
+            test "${#packages[@]}" -eq 1
+            package="${packages[0]}"
+            test -f "$package" && test ! -L "$package"
+            pixi run --locked -e release rattler-build package inspect --json "$package" \
+              | jq -e --arg name "$name" --arg version "$RELEASE_VERSION" \
+                  --arg filename "${package##*/}" '
+                .index | .name == $name and .version == $version and
+                  .build_number == 0 and .subdir == "noarch" and .noarch == "python" and
+                  .license == "BSD-3-Clause" and
+                  $filename == (.name + "-" + .version + "-" + .build + ".conda")
+              ' >/dev/null
+          done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: conda-packages
+          path: conda-dist/noarch/*.conda
+          if-no-files-found: error
+
+  attest:
+    name: Attest conda provenance and publication channel
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      artifact-metadata: write # Record the attested conda artifacts.
+      attestations: write # Store provenance and CEP 27 publication evidence.
+      contents: read
+      id-token: write # Obtain the attestation signing identity.
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: conda-packages
+          path: conda-dist/noarch/
+      - name: Record build provenance
+        id: provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: conda-dist/noarch/*.conda
+      - name: Record CEP 27 publication channel
+        id: publication
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: conda-dist/noarch/*.conda
+          predicate-type: https://schemas.conda.org/attestations-publish-1.schema.json
+          predicate: '{"targetChannel":"https://conda.anaconda.org/jezdez"}'
+      - name: Prepare attestation bundles
+        env:
+          PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+          PUBLICATION_BUNDLE: ${{ steps.publication.outputs.bundle-path }}
+        run: |
+          mkdir -p attestations
+          cp "$PROVENANCE_BUNDLE" attestations/provenance.sigstore.json
+          cp "$PUBLICATION_BUNDLE" attestations/publication.sigstore.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: conda-attestations
+          path: attestations/*.sigstore.json
+          if-no-files-found: error
+
+  publish:
+    name: Publish immutable package to jezdez/main
+    needs: [build, attest]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment:
+      name: anaconda
+      url: https://anaconda.org/jezdez/conda-features
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: v0.84.2
+          environments: release
+          locked: true
+          cache: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: conda-packages
+          path: conda-dist/noarch/
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: conda-attestations
+          path: attestations/
+      - name: Verify attestation subjects, signer, source and channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(conda-dist/noarch/*.conda)
+          test "${#packages[@]}" -eq 1
+          verification=(
+            --repo "$GITHUB_REPOSITORY"
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish-conda.yml"
+            --signer-digest "$GITHUB_SHA"
+            --source-digest "$GITHUB_SHA" --source-ref "$GITHUB_REF"
+            --cert-oidc-issuer https://token.actions.githubusercontent.com
+            --deny-self-hosted-runners
+          )
+          for package in "${packages[@]}"; do
+            gh attestation verify "$package" "${verification[@]}" \
+              --bundle attestations/provenance.sigstore.json \
+              --predicate-type https://slsa.dev/provenance/v1
+            gh attestation verify "$package" "${verification[@]}" \
+              --bundle attestations/publication.sigstore.json \
+              --predicate-type https://schemas.conda.org/attestations-publish-1.schema.json \
+              --format json > "$RUNNER_TEMP/verified-publication.json"
+            jq -se '
+              length == 1 and (.[0] | type == "array" and length == 1 and
+                all(.[]; .verificationResult.statement.predicateType ==
+                  "https://schemas.conda.org/attestations-publish-1.schema.json" and
+                  .verificationResult.statement.predicate.targetChannel ==
+                  "https://conda.anaconda.org/jezdez"))
+            ' "$RUNNER_TEMP/verified-publication.json" >/dev/null
+          done
+      - name: Verify unchanged annotated tag and absent channel releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG_SHA: ${{ needs.build.outputs.tag-sha }}
+        run: |
+          set -euo pipefail
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_VERSION" \
+            --jq 'select(.object.type == "tag") | .object.sha')"
+          test "$tag_sha" = "$RELEASE_TAG_SHA"
+          for name in conda-features; do
+            status="$(curl -sS --connect-timeout 10 --max-time 30 \
+              -o /dev/null -w '%{http_code}' \
+              "https://api.anaconda.org/release/jezdez/$name/$RELEASE_VERSION")"
+            if [ "$status" != 404 ]; then
+              printf '::error::%s %s returned HTTP %s. Upload refused. Check the existing release or API availability.\n' \
+                "$name" "$RELEASE_VERSION" "$status" >&2
+              exit 1
+            fi
+          done
+      - name: Upload core package without replacement
+        env:
+          ANACONDA_API_KEY: ${{ secrets.ANACONDA_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ANACONDA_API_KEY" ]; then
+            printf '::error::The anaconda environment must provide ANACONDA_API_KEY.\n' >&2
+            exit 1
+          fi
+          unset ANACONDA_FORCE ANACONDA_SERVER_URL
+          trap 'printf "::error::Upload failed. Inspect the Anaconda release before retrying. Never replace an uploaded file.\n" >&2' ERR
+          for name in conda-features; do
+            pixi run --locked -e release rattler-build upload --no-config anaconda \
+              --owner jezdez --channel main conda-dist/noarch/"$name-$RELEASE_VERSION-"*.conda
+          done
+      - name: Verify package hashes in Anaconda API and repodata
+        run: |
+          set -euo pipefail
+          trap 'printf "::error::Post-upload verification failed. The package may already be published. Inspect jezdez/main API and repodata before recovery. Do not re-upload or replace files.\n" >&2' ERR
+          curl -fsS --connect-timeout 10 --max-time 60 \
+            https://conda.anaconda.org/jezdez/label/main/noarch/repodata.json \
+            -o "$RUNNER_TEMP/repodata.json"
+          for package in conda-dist/noarch/*.conda; do
+            filename="${package##*/}"
+            pixi run --locked -e release rattler-build package inspect --json "$package" \
+              | jq '.index' > "$RUNNER_TEMP/index.json"
+            name="$(jq -r .name "$RUNNER_TEMP/index.json")"
+            sha256="$(sha256sum "$package")"
+            size="$(stat -c %s "$package")"
+            curl -fsS --connect-timeout 10 --max-time 30 \
+              "https://api.anaconda.org/dist/jezdez/$name/$RELEASE_VERSION/noarch/$filename" \
+              -o "$RUNNER_TEMP/distribution.json"
+            jq -e --arg sha256 "${sha256%% *}" --argjson size "$size" \
+              --arg filename "$filename" --slurpfile index "$RUNNER_TEMP/index.json" '
+                .sha256 == $sha256 and .size == $size and .version == $index[0].version and
+                .basename == ("noarch/" + $filename) and (.labels | index("main") != null) and
+                .attrs.build == $index[0].build and .attrs.build_number == 0 and .attrs.subdir == "noarch"
+              ' "$RUNNER_TEMP/distribution.json" >/dev/null
+            jq -e --arg sha256 "${sha256%% *}" --argjson size "$size" \
+              --arg filename "$filename" --slurpfile index "$RUNNER_TEMP/index.json" '
+                .["packages.conda"][$filename] |
+                .sha256 == $sha256 and .size == $size and .name == $index[0].name and
+                .version == $index[0].version and .build == $index[0].build and
+                .build_number == 0 and .subdir == "noarch" and .noarch == "python"
+              ' "$RUNNER_TEMP/repodata.json" >/dev/null
+          done

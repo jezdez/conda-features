@@ -1,0 +1,50 @@
+schema_version: 1
+
+context:
+  version: ${{ env.get("RELEASE_VERSION", default="0.1.0") }}
+
+package:
+  name: conda-features
+  version: ${{ version }}
+
+source:
+  url: https://files.pythonhosted.org/packages/source/c/conda_features/conda_features-${{ version }}.tar.gz
+  sha256: ${{ env.get("CORE_SOURCE_SHA256") }}
+
+build:
+  number: 0
+  noarch: python
+  script: ${{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
+
+requirements:
+  host:
+    - python 3.12.*
+    - pip
+    - hatchling >=1.27
+  run:
+    - python >=3.12
+    - conda >=26.9.4
+    - filelock >=3.16
+    - pluggy >=1.5
+
+tests:
+  - python:
+      imports:
+        - conda_features
+        - conda_features.hooks
+      pip_check: true
+      python_version: 3.12.*
+  - script:
+      - conda feature --help
+      - conda feature list --json
+
+about:
+  summary: Discover and configure optional features from installed conda plugins
+  license: BSD-3-Clause
+  license_file: LICENSE
+  homepage: https://jezdez.github.io/conda-features/
+  repository: https://github.com/jezdez/conda-features
+
+extra:
+  recipe-maintainers:
+    - jezdez

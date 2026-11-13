@@ -1,0 +1,219 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    name: Test release
+    permissions:
+      contents: read
+    uses: $/.github/workflows/tests.yml
+
+  build:
+    name: Validate and build the core distribution
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      tag-sha: ${{ steps.tag.outputs.tag-sha }}
+      source-sha256: ${{ steps.artifacts.outputs.source_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate annotated release tag on main
+        id: tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          test "$GITHUB_REF" = "refs/tags/$RELEASE_TAG"
+          test "$(git cat-file -t "refs/tags/$RELEASE_TAG")" = tag
+          test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          printf 'tag-sha=%s\n' "$(git rev-parse "refs/tags/$RELEASE_TAG")" >> "$GITHUB_OUTPUT"
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: v0.84.2
+          environments: release
+          locked: true
+          cache: false
+      - name: Check release version and license
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          pixi run --locked -e release python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+          project = tomllib.loads(Path("pyproject.toml").read_text())["project"]
+          assert project["version"] == os.environ["RELEASE_TAG"]
+          assert project["license"] == "BSD-3-Clause"
+          PY
+      - name: Build wheels and source distributions
+        run: |
+          set -euo pipefail
+          pixi run --locked -e release python -m build --no-isolation --outdir dist/python .
+          pixi run --locked -e release python -m twine check --strict dist/python/*
+      - name: Verify exact artifacts and record source digest
+        id: artifacts
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob dotglob
+          files=(dist/python/*)
+          test "${#files[@]}" -eq 2
+          wheel="dist/python/conda_features-${RELEASE_TAG}-py3-none-any.whl"
+          sdist="dist/python/conda_features-${RELEASE_TAG}.tar.gz"
+          test -f "$wheel" && test ! -L "$wheel"
+          test -f "$sdist" && test ! -L "$sdist"
+          gzip -t "$sdist"
+          unzip -p "$wheel" "conda_features-${RELEASE_TAG}.dist-info/METADATA" > "$RUNNER_TEMP/metadata"
+          grep -Fx 'Name: conda-features' "$RUNNER_TEMP/metadata"
+          grep -Fx "Version: $RELEASE_TAG" "$RUNNER_TEMP/metadata"
+          grep -Fx 'License-Expression: BSD-3-Clause' "$RUNNER_TEMP/metadata"
+          digest="$(sha256sum "$sdist")"
+          printf 'source_sha256=%s\n' "${digest%% *}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: python-distributions
+          path: dist/python/
+          if-no-files-found: error
+
+  attest:
+    name: Attest Python distributions
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      artifact-metadata: write # Record the attested artifacts.
+      attestations: write # Store signed Python provenance.
+      contents: read
+      id-token: write # Obtain the attestation signing identity.
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: python-distributions
+          path: dist/python/
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/python/*
+
+  create-draft-release:
+    name: Create draft GitHub release
+    needs: [build, attest]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Create the draft release and upload its assets.
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: python-distributions
+          path: dist/python/
+      - name: Create draft with immutable assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG_SHA: ${{ needs.build.outputs.tag-sha }}
+        run: |
+          set -euo pipefail
+          tag_sha="$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" \
+            --jq 'select(.object.type == "tag") | .object.sha')"
+          test "$tag_sha" = "$RELEASE_TAG_SHA"
+          if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            printf 'Release %s already exists. Refusing to replace assets.\n' "$RELEASE_TAG" >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" \
+            --draft --verify-tag --title "$RELEASE_TAG" \
+            --generate-notes --repo "$GH_REPO"
+          cleanup_draft() {
+            gh release delete "$RELEASE_TAG" --repo "$GH_REPO" --yes >/dev/null 2>&1 || true
+          }
+          trap cleanup_draft ERR
+          gh release upload "$RELEASE_TAG" dist/python/* --repo "$GH_REPO"
+          trap - ERR
+
+  publish-pypi:
+    name: Publish conda-features to PyPI
+    needs: [build, create-draft-release]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/conda-features
+    permissions:
+      contents: read
+      id-token: write # Authenticate with the PyPI trusted publishers.
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: python-distributions
+          path: dist/python/
+      - name: Verify the annotated tag has not changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG_SHA: ${{ needs.build.outputs.tag-sha }}
+        run: |
+          set -euo pipefail
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" \
+            --jq 'select(.object.type == "tag") | .object.sha')"
+          test "$tag_sha" = "$RELEASE_TAG_SHA"
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          packages-dir: dist/python/
+          attestations: true
+
+  publish-conda:
+    name: Publish and verify the conda package
+    needs: [build, publish-pypi]
+    permissions:
+      artifact-metadata: write # Allow the called workflow to record artifacts.
+      attestations: write # Allow conda provenance and publication attestations.
+      contents: read
+      id-token: write # Allow the called workflow to obtain a signing identity.
+    uses: $/.github/workflows/publish-conda.yml
+    with:
+      version: ${{ github.ref_name }}
+      source-sha256: ${{ needs.build.outputs.source-sha256 }}
+
+  publish-github-release:
+    name: Publish GitHub release after both registries succeed
+    needs: [build, publish-pypi, publish-conda]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Make the completed draft release public.
+    steps:
+      - name: Make the draft public
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG_SHA: ${{ needs.build.outputs.tag-sha }}
+        run: |
+          set -euo pipefail
+          tag_sha="$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" \
+            --jq 'select(.object.type == "tag") | .object.sha')"
+          test "$tag_sha" = "$RELEASE_TAG_SHA"
+          gh release view "$RELEASE_TAG" --repo "$GH_REPO" --json isDraft \
+            | jq -e '.isDraft == true' >/dev/null
+          gh release edit "$RELEASE_TAG" --repo "$GH_REPO" --draft=false
