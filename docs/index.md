@@ -2,6 +2,8 @@
 
 `conda-features` adds `conda feature` commands for managing optional capabilities supplied by installed providers. A provider describes the feature, its prerequisites, and either a boolean conda setting or a sequence of deployment steps. You can inspect its state, preview changes, enable it, and later disable resources the deployment owns.
 
+Release 0.1.0 is available on [PyPI](https://pypi.org/project/conda-features/0.1.0/) and the [jezdez Anaconda channel](https://anaconda.org/jezdez/conda-features). See [installation](how-to/install.md) for the correct host environment and the separate source-only examples package.
+
 The core package ships no feature catalog. The separate `conda-features-examples` distribution contains real deployment providers for PyPI support and shell completion. Installing that distribution makes their declarations discoverable. Enabling them can install packages and change configuration or shell files.
 
 ## Start here

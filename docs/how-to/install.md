@@ -14,21 +14,36 @@ If Python cannot import conda, stop and select the host interpreter rather than 
 
 Use an absolute path to the host Python in the commands below if needed. If bare `conda` selects another installation, use `python -m conda` with that same host interpreter for feature commands too. Do not install into a conda runtime managed by another application without following that application's installation guidance.
 
-## Install the current source version
+## Install release 0.1.0
 
-Neither `conda-features` nor `conda-features-examples` currently has a published PyPI release. Use pip with Git source URLs. This requires Git and pip in addition to the existing conda runtime. It does not require a repository checkout or Pixi.
+The core package is published on [PyPI](https://pypi.org/project/conda-features/0.1.0/) and [Anaconda.org](https://anaconda.org/jezdez/conda-features). Choose one installation method.
 
-```sh
-python -m pip install "conda-features @ git+https://github.com/jezdez/conda-features.git@main"
-```
-
-This installs the command, but no feature declarations. Install the bundled deployment providers into the same runtime:
+For a conventional conda installation whose runtime is base:
 
 ```sh
-python -m pip install "conda-features-examples @ git+https://github.com/jezdez/conda-features.git@main#subdirectory=packages/conda-features-examples"
+conda install --name base --override-channels --channel conda-forge \
+  --channel jezdez conda-features=0.1.0
 ```
 
-These commands install the current `main`, not a stable release. For a reproducible installation, replace `main` in both URLs with the same reviewed commit SHA. Pip installs these Python distributions into an existing runtime. It cannot bootstrap the required conda installation.
+The conda package declares its conda runtime dependency. Review the proposed transaction before accepting. If your conda host is not base, select its actual environment instead. Do not use a project environment merely because it is active.
+
+For pip, select the host interpreter as described above:
+
+```sh
+python -m pip install conda-features==0.1.0
+```
+
+The PyPI package deliberately does not ask pip to install conda. Conda must already be available in that interpreter. Neither method needs Pixi or a source checkout.
+
+## Add the repository's deployment examples
+
+The core installs the command but no feature declarations. `conda-features-examples` is intentionally not published to PyPI or Anaconda.org. To try its real PyPI and completion deployments, install it from the matching repository tag into the same runtime. This step requires Git and pip:
+
+```sh
+python -m pip install "conda-features-examples @ git+https://github.com/jezdez/conda-features.git@0.1.0#subdirectory=packages/conda-features-examples"
+```
+
+For a fixed source revision, replace the tag with a reviewed commit SHA. Contributors testing unreleased code can install from a checkout using the [development guide](develop.md).
 
 The examples distribution contains working deployment declarations, despite its name. Installing it does not select a solver, add a channel, install a completion hook, or preinstall all deployment prerequisites. Those changes are proposed by `conda feature enable` and require confirmation.
 

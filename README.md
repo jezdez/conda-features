@@ -6,15 +6,27 @@ The core package ships no feature catalog. The separate `conda-features-examples
 
 ## Install and use
 
-Use Python 3.12 or newer with conda 26.9.4 or newer. Install into the Python environment running conda, not just an environment you want to configure. These packages are not published on PyPI yet. The current installation method is from Git, which requires Git and pip:
+`conda-features` 0.1.0 is available on [PyPI](https://pypi.org/project/conda-features/) and the [jezdez Anaconda channel](https://anaconda.org/jezdez/conda-features). Use Python 3.12 or newer with conda 26.9.4 or newer. Install into the Python environment running conda, not just an environment you want to configure. For a conventional installation hosted in base:
+
+```sh
+conda install --name base --override-channels --channel conda-forge \
+  --channel jezdez conda-features=0.1.0
+```
+
+Alternatively, with the host Python:
 
 ```sh
 python -m conda --version
-python -m pip install "conda-features @ git+https://github.com/jezdez/conda-features.git@main"
-python -m pip install "conda-features-examples @ git+https://github.com/jezdez/conda-features.git@main#subdirectory=packages/conda-features-examples"
+python -m pip install conda-features==0.1.0
 ```
 
-Use that installation's conda command:
+The examples distribution is intentionally unpublished. To use its real deployment declarations, install it from the repository into the same runtime:
+
+```sh
+python -m pip install "conda-features-examples @ git+https://github.com/jezdez/conda-features.git@0.1.0#subdirectory=packages/conda-features-examples"
+```
+
+Then use that installation's conda command:
 
 ```sh
 conda feature list
