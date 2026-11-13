@@ -94,6 +94,8 @@ pixi run -e integration python -m pip wheel --no-deps --no-build-isolation packa
 
 ## Output and Documentation
 
+- Documentation uses Sphinx, MyST, `conda-sphinx-theme`, and `sphinx-design`. Keep its Diátaxis navigation: tutorials, how-to guides, reference, and explanation. Build with `pixi run -e docs docs`, which treats warnings as errors and checks unresolved references. Verify executable examples separately and inspect rendered desktop and mobile pages after navigation or layout changes.
+
 - `--json` is an output format. Query and mutation commands return one complete structured result on stdout. Nested operations must not corrupt it with progress output. Send diagnostics and confirmation prompts to stderr.
 - Keep confirmation explicit. Noninteractive mutations require `--yes`. Cancellation must not change managed resources.
 - Read `DESIGN.md` for intent and `README.md` for implemented behavior. Do not rewrite the design document during routine implementation unless requested.
