@@ -11,6 +11,7 @@ from conda.base.context import Context
 from conda.cli.condarc import ConfigurationFile
 from conda.core.envs_manager import get_user_environments_txt_file
 
+from ..steps import runner
 from ..steps.configuration import EnsureChannel, SetSetting
 from ..steps.packages import InstallPackages
 from .configuration import plan_change
@@ -71,6 +72,17 @@ def plan_prerequisites(
     """Plan prerequisites without performing an unconstrained second solve."""
     names = prerequisite_order(catalog, ctx, scope, feature.name)
     for name in names:
+        item = catalog[name][1]
+        if item.enabled_setting is None and (
+            not item.steps
+            or any(
+                type(step) not in (SetSetting, EnsureChannel, InstallPackages)
+                for step in item.steps
+            )
+        ):
+            raise CondaError(
+                f"Deploy custom feature {name} separately. Combined planning uses built-in configuration steps only."
+            )
         if name != feature.name and any(
             not isinstance(step, (SetSetting, EnsureChannel))
             for step in catalog[name][1].steps
@@ -103,7 +115,15 @@ def plan_prerequisites(
                 initial_content=config.content,
             )
             if item.enabled_setting
-            else item.enable(catalog, candidate, path, scope)
+            else runner.plan(
+                item,
+                catalog,
+                candidate,
+                path,
+                scope,
+                "enable",
+                initial_content=config.content,
+            )
         )
         plans.append(child)
         if "steps" in child:

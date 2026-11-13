@@ -414,9 +414,9 @@ def test_dependent_step_sees_selected_prefix_during_plan_and_apply(
     original_plan = SetSetting.plan
     original_apply = SetSetting.apply
 
-    def plan(self, ctx, path, operation, saved):
+    def plan(self, ctx, path, operation, saved, **kwargs):
         seen.append(("plan", ctx.target_prefix))
-        return original_plan(self, ctx, path, operation, saved)
+        return original_plan(self, ctx, path, operation, saved, **kwargs)
 
     def apply(self, plan, ctx, checkpoint):
         seen.append(("apply", ctx.target_prefix))
@@ -436,6 +436,84 @@ def test_dependent_step_sees_selected_prefix_during_plan_and_apply(
     )
     assert code == 0, out + err
     assert seen == [("plan", str(empty_env)), ("apply", str(empty_env))]
+
+
+def test_multiple_channel_features_plan_and_apply_in_order(
+    conda_cli, dependency_catalog, tmp_path
+):
+    from conda_features.steps import EnsureChannel
+
+    dependency_catalog["base"] = (
+        "test",
+        Feature("base", "Base", steps=(EnsureChannel("alpha"),)),
+    )
+    dependency_catalog["dependent"] = (
+        "test",
+        Feature(
+            "dependent", "Dependent", requires=("base",), steps=(EnsureChannel("beta"),)
+        ),
+    )
+    path = tmp_path / ".condarc"
+    path.write_text("channels: [conda-forge]\n")
+    out, err, code = conda_cli(
+        "feature",
+        "enable",
+        "dependent",
+        "--with-dependencies",
+        "--file",
+        path,
+        "--dry-run",
+        "--json",
+    )
+    assert code == 0, out + err
+    assert path.read_text() == "channels: [conda-forge]\n"
+    out, err, code = conda_cli(
+        "feature",
+        "enable",
+        "dependent",
+        "--with-dependencies",
+        "--file",
+        path,
+        "--yes",
+        "--json",
+    )
+    assert code == 0, out + err
+    assert list(Context(search_path=(path,)).channels) == [
+        "conda-forge",
+        "alpha",
+        "beta",
+    ]
+    for name in ("dependent", "base"):
+        out, err, code = conda_cli(
+            "feature", "disable", name, "--file", path, "--yes", "--json"
+        )
+        assert code == 0, out + err
+    assert list(Context(search_path=(path,)).channels) == ["conda-forge"]
+
+
+def test_custom_step_prerequisites_are_rejected_before_planning(
+    dependency_catalog, tmp_path
+):
+    from conda_features.steps import SetSetting
+
+    class CustomSetting(SetSetting):
+        def plan(self, ctx, path, operation, saved):
+            pytest.fail("Custom step must retain its original plan interface")
+
+    dependency_catalog["base"] = (
+        "test",
+        Feature("base", "Base", steps=(CustomSetting("offline", True),)),
+    )
+    path = tmp_path / ".condarc"
+    path.write_text("{}\n")
+    with pytest.raises(CondaError, match="separately"):
+        dependency_catalog["dependent"][1].enable(
+            dependency_catalog,
+            Context(search_path=(path,)),
+            path,
+            "user",
+            with_dependencies=True,
+        )
 
 
 def test_prerequisite_cycle_and_scope_are_rejected(dependency_catalog, tmp_path):

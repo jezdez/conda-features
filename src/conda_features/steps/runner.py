@@ -1,6 +1,7 @@
 """Ordered planning and recoverable execution for a feature's steps."""
 
 import json
+from copy import deepcopy
 from pathlib import Path
 
 from conda import CondaError
@@ -29,7 +30,7 @@ def load(feature, path):
     return receipt, saved
 
 
-def plan(feature, catalog, ctx, path, scope, operation):
+def plan(feature, catalog, ctx, path, scope, operation, *, initial_content=None):
     if scope not in feature.scopes:
         raise CondaError(f"Unsupported scope: {scope}")
     if operation == "enable":
@@ -64,11 +65,24 @@ def plan(feature, catalog, ctx, path, scope, operation):
             step,
             step.plan(
                 ctx, path, operation, saved["steps"].get(step.id) if saved else None
+            )
+            if initial_content is None
+            or not isinstance(step, (SetSetting, EnsureChannel))
+            else step.plan(
+                ctx,
+                path,
+                operation,
+                saved["steps"].get(step.id) if saved else None,
+                initial_content=initial_content,
             ),
         )
         for step in steps
     ]
-    config = ConfigurationFile(path=path, context=ctx)
+    config = (
+        ConfigurationFile(path=path, context=ctx)
+        if initial_content is None
+        else ConfigurationFile(content=deepcopy(initial_content), context=ctx)
+    )
     for step, item in plans:
         try:
             json.dumps(item.state, allow_nan=False)

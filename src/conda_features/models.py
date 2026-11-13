@@ -76,6 +76,12 @@ class Feature:
         """Plan an opt-in. The caller confirms and applies the returned plan."""
         if with_dependencies:
             selected = prerequisite_order(catalog, ctx, scope, self.name)
+            if len(selected) > 1 and any(
+                type(catalog[name][1]).enable is not Feature.enable for name in selected
+            ):
+                raise CondaError(
+                    "Enable features with custom deployment methods separately before retrying."
+                )
             if all(catalog[name][1].enabled_setting for name in selected):
                 return plan_change(
                     catalog,
