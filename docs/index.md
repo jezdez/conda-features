@@ -53,6 +53,7 @@ tutorials/create-provider
 :caption: How-to guides
 
 how-to/install
+how-to/verify-release
 how-to/manage-features
 how-to/deploy-providers
 how-to/recover
@@ -81,6 +82,7 @@ design
 | --- | --- |
 | Try a complete deployment without editing your usual configuration | [First deployment tutorial](tutorials/first-deployment.md) |
 | Install the plugin into your conda runtime | [Installation](how-to/install.md) |
+| Verify downloaded artifacts and publication evidence | [Verify a release](how-to/verify-release.md) |
 | Choose a scope and protect other environments | [Manage features](how-to/manage-features.md) |
 | Deploy PyPI support or shell completion | [Real providers](how-to/deploy-providers.md) |
 | Diagnose drift or recover interrupted setup | [Troubleshooting and recovery](how-to/recover.md) |

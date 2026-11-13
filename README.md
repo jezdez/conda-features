@@ -45,6 +45,7 @@ Start with the [documentation index](docs/index.md) or the [first deployment tut
 The Sphinx documentation follows Diátaxis: tutorials, how-to guides, reference, and explanation. Contributor setup and documentation build commands are in [Development](docs/how-to/develop.md).
 
 - [Manage features and scopes](docs/how-to/manage-features.md)
+- [Verify release provenance and publication attestations](docs/how-to/verify-release.md)
 - [Deploy real PyPI support and shell completion](docs/how-to/deploy-providers.md)
 - [Diagnose and recover setup](docs/how-to/recover.md)
 - [Migrate and transfer choices](docs/how-to/transfer.md)

@@ -69,29 +69,9 @@ jobs:
           assert project["license"] == "BSD-3-Clause"
           PY
       - name: Build wheels and source distributions
-        if: github.ref_name != '0.1.0'
         run: |
           set -euo pipefail
           pixi run --locked -e release python -m build --no-isolation --outdir dist/python .
-          pixi run --locked -e release python -m twine check --strict dist/python/*
-      - name: Recover immutable 0.1.0 Python artifacts
-        if: github.ref_name == '0.1.0'
-        run: |
-          set -euo pipefail
-          mkdir -p dist/python
-          curl -fsS --proto '=https' --max-time 60 \
-            https://pypi.org/pypi/conda-features/0.1.0/json -o "$RUNNER_TEMP/pypi.json"
-          jq -e '.urls | length == 2' "$RUNNER_TEMP/pypi.json" >/dev/null
-          for filename in conda_features-0.1.0-py3-none-any.whl conda_features-0.1.0.tar.gz; do
-            url="$(jq -er --arg filename "$filename" '.urls[] | select(.filename == $filename) | .url' "$RUNNER_TEMP/pypi.json")"
-            [[ "$url" == https://files.pythonhosted.org/* ]]
-            curl -fsS --proto '=https' --max-time 60 "$url" -o "dist/python/$filename"
-          done
-          # These hashes identify the already published artifacts from the original tag.
-          printf '%s\n' \
-            '831232d041e8972a62872a3f314fdbf4321235394afc15c7572e6a71a7e14abf  dist/python/conda_features-0.1.0-py3-none-any.whl' \
-            '30f2255eb91497f6f26285a7b0515bd518e1e2dbced1524c36add675c72e0c46  dist/python/conda_features-0.1.0.tar.gz' \
-            | sha256sum -c -
           pixi run --locked -e release python -m twine check --strict dist/python/*
       - name: Verify exact artifacts and record source digest
         id: artifacts
@@ -134,9 +114,20 @@ jobs:
           name: python-distributions
           path: dist/python/
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        if: github.ref_name != '0.1.0'
+        id: provenance
         with:
           subject-path: dist/python/*
+      - name: Retain Python provenance bundle
+        env:
+          BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+        run: |
+          mkdir -p attestations
+          cp "$BUNDLE" attestations/python-provenance.sigstore.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: python-attestations
+          path: attestations/python-provenance.sigstore.json
+          if-no-files-found: error
 
   create-draft-release:
     name: Create draft GitHub release
@@ -161,15 +152,6 @@ jobs:
             --jq 'select(.object.type == "tag") | .object.sha')"
           test "$tag_sha" = "$RELEASE_TAG_SHA"
           if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
-            if [ "$RELEASE_TAG" = 0.1.0 ]; then
-              gh release view "$RELEASE_TAG" --repo "$GH_REPO" --json isDraft,assets \
-                | jq -e '.isDraft == true and (.assets | length == 2)' >/dev/null
-              gh release download "$RELEASE_TAG" --repo "$GH_REPO" --dir "$RUNNER_TEMP/existing-assets"
-              for artifact in dist/python/*; do
-                cmp "$artifact" "$RUNNER_TEMP/existing-assets/${artifact##*/}"
-              done
-              exit 0
-            fi
             printf 'Release %s already exists. Refusing to replace assets.\n' "$RELEASE_TAG" >&2
             exit 1
           fi
@@ -209,7 +191,6 @@ jobs:
             --jq 'select(.object.type == "tag") | .object.sha')"
           test "$tag_sha" = "$RELEASE_TAG_SHA"
       - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
-        if: github.ref_name != '0.1.0'
         with:
           packages-dir: dist/python/
           attestations: true
@@ -236,6 +217,14 @@ jobs:
     permissions:
       contents: write # Make the completed draft release public.
     steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: python-attestations
+          path: attestations/python/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: conda-attestations
+          path: attestations/conda/
       - name: Make the draft public
         env:
           GH_TOKEN: ${{ github.token }}
@@ -249,4 +238,10 @@ jobs:
           test "$tag_sha" = "$RELEASE_TAG_SHA"
           gh release view "$RELEASE_TAG" --repo "$GH_REPO" --json isDraft \
             | jq -e '.isDraft == true' >/dev/null
+          cp attestations/conda/provenance.sigstore.json attestations/conda-provenance.sigstore.json
+          cp attestations/conda/publication.sigstore.json attestations/conda-publication.sigstore.json
+          gh release upload "$RELEASE_TAG" --repo "$GH_REPO" \
+            attestations/python/python-provenance.sigstore.json \
+            attestations/conda-provenance.sigstore.json \
+            attestations/conda-publication.sigstore.json
           gh release edit "$RELEASE_TAG" --repo "$GH_REPO" --draft=false
