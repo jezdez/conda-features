@@ -6624,5 +6624,5 @@ packages:
 - pypi: ./packages/conda-features-examples
   name: conda-features-examples
   requires_dist:
-  - conda-features>=0.1.0
+  - conda-features>=0.2.0
   requires_python: '>=3.12'

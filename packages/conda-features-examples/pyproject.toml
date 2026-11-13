@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "conda-features-examples"
-version = "0.1.0"
+version = "0.2.0"
 description = "Feature deployment providers for conda-pypi and conda-completion"
 readme = { text = "Real deployment providers for conda-pypi and conda-completion. Install into the conda runtime hosting conda-features. Enabling features can install packages, change solver and channel settings, and install shell completion hooks after confirmation. See https://jezdez.github.io/conda-features/how-to/deploy-providers/ for setup and recovery guidance.", content-type = "text/plain" }
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
-dependencies = ["conda-features>=0.1.0"]
+dependencies = ["conda-features>=0.2.0"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src", "/LICENSE", "/pyproject.toml"]
