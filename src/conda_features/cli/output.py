@@ -16,6 +16,24 @@ def render(result: dict) -> None:
         if not result["problems"]:
             print("No local feature readiness problems found.")
         print(result["message"])
+    elif "feature" in result:
+        if "values" in result:
+            for key, item in result["values"].items():
+                print(f"{key}: {json.dumps(item, default=str)}")
+        elif "sources" in result:
+            for source, values in result["sources"].items():
+                print(f"==> {source} <==")
+                for key, item in values.items():
+                    print(f"{key}: {json.dumps(item, default=str)}")
+        elif "descriptions" in result:
+            for key, description in result["descriptions"].items():
+                print(f"{key} ({', '.join(description['element_types'])})")
+                print(
+                    f"  Default: {json.dumps(description['default_value'], default=str)}"
+                )
+                print(f"  {description['description']}")
+        else:
+            print(result["message"])
     elif "changes" in result:
         print(f"Configuration: {result['path']} ({result['scope']})")
         if "checked_environments" in result:

@@ -258,6 +258,35 @@ def test_configure_preserves_scalar_text_without_shell_interpretation(provider_c
     assert yaml.read(path=rc)["plugins"]["sample_label"] == label
 
 
+def test_config_set_preserves_scalar_text_in_fresh_process(provider_cli):
+    run, rc = provider_cli
+    label = "a value with spaces, 'quotes', $HOME and = signs"
+    result = run("config", "sample", "--set", "plugins.sample_label", label, "--yes")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert json.loads(result.stdout)["changes"]["plugins.sample_label"] == label
+    from conda.common.serialize import yaml
+
+    assert yaml.read(path=rc)["plugins"]["sample_label"] == label
+
+
+def test_config_plugin_queries_and_removal_in_fresh_process(provider_cli):
+    run, rc = provider_cli
+    result = run("config", "sample", "--set", "plugins.sample_label", "label", "--yes")
+    assert result.returncode == 0, result.stdout + result.stderr
+    for option in ("--get", "--show"):
+        result = run("config", "sample", option, "plugins.sample_label")
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert json.loads(result.stdout)["values"] == {"plugins.sample_label": "label"}
+    result = run("config", "sample", "--show-sources")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (
+        json.loads(result.stdout)["sources"][str(rc)]["plugins.sample_label"] == "label"
+    )
+    result = run("config", "sample", "--remove-key", "plugins.sample_label", "--yes")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "sample_label" not in rc.read_text()
+
+
 @pytest.mark.parametrize(
     "args",
     [

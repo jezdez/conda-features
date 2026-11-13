@@ -12,6 +12,7 @@ from conda.common.configuration import YamlRawParameter
 from conda.models.version import VersionSpec
 
 from .operations import lifecycle
+from .operations.config_query import query
 from .operations.configuration import apply_change, plan_change
 from .operations.dependencies import plan_prerequisites, prerequisite_order
 from .operations.intent import export_feature
@@ -126,6 +127,8 @@ class Feature:
         path: Path,
         scope: str,
         settings: dict[str, str],
+        *,
+        remove_keys: tuple[str, ...] = (),
     ) -> dict[str, Any]:
         """Plan changes to this feature's declared scalar settings."""
         if self.steps:
@@ -134,8 +137,43 @@ class Feature:
                     "Disable the deployment before changing its configuration."
                 )
         return plan_change(
-            catalog, ctx, path, scope, "configure", self.name, settings=settings
+            catalog,
+            ctx,
+            path,
+            scope,
+            "configure",
+            self.name,
+            settings=settings,
+            remove_keys=remove_keys,
         )
+
+    def config_query(
+        self,
+        catalog: Catalog,
+        ctx: Context,
+        path: Path,
+        scope: str,
+        action: str,
+        keys: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Inspect declared settings without running deployment planning."""
+        if action == "validate":
+            if scope not in self.scopes:
+                raise CondaError(f"Feature {self.name} does not support scope {scope}.")
+            ctx.validate_configuration()
+            ctx.plugins.validate_configuration()
+            result = self.status(catalog, ctx, scope, path=path)
+            if result["readiness"] != "ready":
+                raise CondaError(
+                    "Feature configuration is not ready: " + " ".join(result["reasons"])
+                )
+            return {
+                "operation": "validate",
+                "feature": self.name,
+                "valid": True,
+                "message": "Configuration and local feature requirements are valid. Runtime behavior was not checked.",
+            }
+        return query(self, ctx, path, scope, action, keys)
 
     def repair(
         self, catalog: Catalog, ctx: Context, path: Path, scope: str

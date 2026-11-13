@@ -14,7 +14,13 @@ from conda.cli.condarc import ConfigurationFile
 from conda.common.configuration import YamlRawParameter
 from filelock import FileLock, Timeout
 
-from .settings import fingerprint, prospective_context, setting_context, value
+from .settings import (
+    fingerprint,
+    prospective_context,
+    saved_keys,
+    setting_context,
+    value,
+)
 from .validation import validate_catalog
 
 if TYPE_CHECKING:
@@ -33,6 +39,7 @@ def plan_change(
     settings: dict[str, str] | None = None,
     selected_names: list[str] | None = None,
     initial_content: dict | None = None,
+    remove_keys: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     validate_catalog(catalog, ctx)
     if selected_names is not None:
@@ -57,6 +64,7 @@ def plan_change(
     )
     changes = {}
     expected_values = {}
+    removed = []
     ordered = []
 
     def visit(key, visiting=()):
@@ -87,8 +95,24 @@ def plan_change(
             raise CondaError(f"Feature {key} does not support scope {scope}.")
         if operation == "configure":
             requested = settings or {}
-            if not requested or set(requested) - set(feature.settings):
+            if (not requested and not remove_keys) or (
+                set(requested) | set(remove_keys)
+            ) - set(feature.settings):
                 raise CondaError(f"Only declared settings for {key} may be configured.")
+            if set(requested).intersection(remove_keys) or len(set(remove_keys)) != len(
+                remove_keys
+            ):
+                raise CondaError("Provide distinct settings for configuration removal.")
+            for setting in remove_keys:
+                names = saved_keys(config, ctx, setting)
+                if not names:
+                    raise CondaError(
+                        f"Setting {setting} is not saved in the selected file."
+                    )
+                for saved in names:
+                    config.remove_key(saved)
+                    removed.append(saved)
+                    changes[saved] = "remove saved override"
         elif operation in ("enable", "disable"):
             if feature.enabled_setting is None:
                 raise CondaError(
@@ -123,7 +147,11 @@ def plan_change(
         if operation != "disable":
             result = catalog[key][1].status(catalog, candidate, scope)
             if result["readiness"] == "blocked" or (
-                operation == "enable" and result["readiness"] != "ready"
+                (
+                    operation == "enable"
+                    or (remove_keys and result["effective"] == "enabled")
+                )
+                and result["readiness"] != "ready"
             ):
                 raise CondaError(
                     f"Cannot {operation} {key}: " + " ".join(result["reasons"])
@@ -148,7 +176,7 @@ def plan_change(
                     f"Change would break enabled feature {key}: "
                     + " ".join(after["reasons"])
                 )
-    return {
+    plan = {
         "operation": operation,
         "features": selected,
         "scope": scope,
@@ -156,6 +184,9 @@ def plan_change(
         "changes": changes,
         "fingerprint": initial,
     }
+    if removed:
+        plan["remove"] = removed
+    return plan
 
 
 def apply_change(plan: dict[str, Any], ctx: Context) -> None:

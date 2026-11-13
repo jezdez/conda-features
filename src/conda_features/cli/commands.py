@@ -7,6 +7,7 @@ from importlib import import_module
 
 from conda import CondaError
 from conda.base.context import context
+from conda.common.configuration import ConfigurationError
 
 from ..operations.discovery import discover
 from ..operations.intent import IntentError
@@ -24,6 +25,8 @@ def execute(args: Namespace) -> int:
         result = command.execute(args, catalog, ctx, path, scope)
     except (CondaError, OSError, ValueError, TypeError, OverflowError) as exc:
         message = str(exc)
+        if args.operation == "config" and isinstance(exc, ConfigurationError):
+            message = "Conda configuration validation failed. Inspect the selected settings and configuration sources locally. Values are omitted because validation errors can contain private configuration."
         if args.operation in ("export", "apply") and not isinstance(exc, IntentError):
             message = "Intent operation failed. Inspect the local configuration and providers. Review with --dry-run and pass --yes only after approving the changes. Configuration values are omitted from this error."
         if context.json:

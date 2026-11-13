@@ -15,6 +15,7 @@ def configure_parser(parser: ArgumentParser) -> None:
         "explain",
         "enable",
         "disable",
+        "config",
         "configure",
         "diagnose",
         "repair",
