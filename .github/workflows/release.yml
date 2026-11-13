@@ -69,9 +69,29 @@ jobs:
           assert project["license"] == "BSD-3-Clause"
           PY
       - name: Build wheels and source distributions
+        if: github.ref_name != '0.1.0'
         run: |
           set -euo pipefail
           pixi run --locked -e release python -m build --no-isolation --outdir dist/python .
+          pixi run --locked -e release python -m twine check --strict dist/python/*
+      - name: Recover immutable 0.1.0 Python artifacts
+        if: github.ref_name == '0.1.0'
+        run: |
+          set -euo pipefail
+          mkdir -p dist/python
+          curl -fsS --proto '=https' --max-time 60 \
+            https://pypi.org/pypi/conda-features/0.1.0/json -o "$RUNNER_TEMP/pypi.json"
+          jq -e '.urls | length == 2' "$RUNNER_TEMP/pypi.json" >/dev/null
+          for filename in conda_features-0.1.0-py3-none-any.whl conda_features-0.1.0.tar.gz; do
+            url="$(jq -er --arg filename "$filename" '.urls[] | select(.filename == $filename) | .url' "$RUNNER_TEMP/pypi.json")"
+            [[ "$url" == https://files.pythonhosted.org/* ]]
+            curl -fsS --proto '=https' --max-time 60 "$url" -o "dist/python/$filename"
+          done
+          # These hashes identify the already published artifacts from the original tag.
+          printf '%s\n' \
+            '831232d041e8972a62872a3f314fdbf4321235394afc15c7572e6a71a7e14abf  dist/python/conda_features-0.1.0-py3-none-any.whl' \
+            '30f2255eb91497f6f26285a7b0515bd518e1e2dbced1524c36add675c72e0c46  dist/python/conda_features-0.1.0.tar.gz' \
+            | sha256sum -c -
           pixi run --locked -e release python -m twine check --strict dist/python/*
       - name: Verify exact artifacts and record source digest
         id: artifacts
@@ -114,6 +134,7 @@ jobs:
           name: python-distributions
           path: dist/python/
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        if: github.ref_name != '0.1.0'
         with:
           subject-path: dist/python/*
 
@@ -140,6 +161,15 @@ jobs:
             --jq 'select(.object.type == "tag") | .object.sha')"
           test "$tag_sha" = "$RELEASE_TAG_SHA"
           if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            if [ "$RELEASE_TAG" = 0.1.0 ]; then
+              gh release view "$RELEASE_TAG" --repo "$GH_REPO" --json isDraft,assets \
+                | jq -e '.isDraft == true and (.assets | length == 2)' >/dev/null
+              gh release download "$RELEASE_TAG" --repo "$GH_REPO" --dir "$RUNNER_TEMP/existing-assets"
+              for artifact in dist/python/*; do
+                cmp "$artifact" "$RUNNER_TEMP/existing-assets/${artifact##*/}"
+              done
+              exit 0
+            fi
             printf 'Release %s already exists. Refusing to replace assets.\n' "$RELEASE_TAG" >&2
             exit 1
           fi
@@ -179,6 +209,7 @@ jobs:
             --jq 'select(.object.type == "tag") | .object.sha')"
           test "$tag_sha" = "$RELEASE_TAG_SHA"
       - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        if: github.ref_name != '0.1.0'
         with:
           packages-dir: dist/python/
           attestations: true
@@ -192,6 +223,8 @@ jobs:
       contents: read
       id-token: write # Allow the called workflow to obtain a signing identity.
     uses: $/.github/workflows/publish-conda.yml
+    secrets:
+      ANACONDA_API_KEY: ${{ secrets.ANACONDA_API_KEY }}
     with:
       version: ${{ github.ref_name }}
       source-sha256: ${{ needs.build.outputs.source-sha256 }}

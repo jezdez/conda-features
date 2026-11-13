@@ -2,6 +2,10 @@ name: Publish conda package
 
 on:
   workflow_call:
+    secrets:
+      ANACONDA_API_KEY:
+        description: Upload credential supplied by the protected anaconda environment
+        required: true
     inputs:
       version:
         description: Validated bare release version from release.yml
