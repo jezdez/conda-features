@@ -124,6 +124,17 @@ class Feature:
             catalog, ctx, path, scope, "configure", self.name, settings=settings
         )
 
+    def repair(
+        self, catalog: Catalog, ctx: Context, path: Path, scope: str
+    ) -> dict[str, Any]:
+        """Retry saved intent without adopting or overwriting unrelated resources."""
+        status = self.status(catalog, ctx, None, path=path)
+        if status["requested"] != "enabled":
+            raise CondaError(
+                "No enabled choice is saved at this scope. Use enable explicitly instead of repair."
+            )
+        return self.enable(catalog, ctx, path, scope)
+
     def status(
         self,
         catalog: Catalog,

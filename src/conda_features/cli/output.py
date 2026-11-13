@@ -8,6 +8,12 @@ from conda.base.context import context
 def render(result: dict) -> None:
     if context.json:
         print(json.dumps(result, default=str))
+    elif "problems" in result:
+        for problem in result["problems"]:
+            print(f"{problem['feature']}: {problem['message']} {problem['action']}")
+        if not result["problems"]:
+            print("No local feature readiness problems found.")
+        print(result["message"])
     elif "changes" in result:
         print(f"Configuration: {result['path']} ({result['scope']})")
         if "checked_environments" in result:

@@ -174,6 +174,14 @@ Changing step IDs or using an older deployment receipt is refused rather than gu
 
 Declarations should be cheap to import and must not read credentials, contact services, or run setup. Installed providers are trusted Python code, not sandboxed metadata.
 
+## Diagnostics and Repair
+
+`conda feature diagnose --json` reports local readiness problems and deployment receipts whose provider is no longer installed. Use the normal scope flags to select the configuration file being inspected. It does not solve packages, verify authentication, or execute providers. A retained receipt identifies the feature ID without saving additional credentials or configuration history.
+
+`conda feature repair FEATURE --dry-run` previews a retry of an enabled choice saved at that scope. Apply it with confirmation or `--yes`. Repair uses the normal feature planner, including cross-environment checks, and refuses to overwrite user edits. A missing provider must be reinstalled before repair. Unsupported receipts need the provider version that wrote them.
+
+`conda doctor features --prefix PATH` runs the same diagnostics for the environment configuration. `conda doctor features --fix --prefix PATH` previews each repair and uses conda's confirmation prompt. Doctor manages its own text report. Use `feature diagnose --json` for a structured result. Receipts beside other configuration files are inspected by selecting those files explicitly, not by scanning the filesystem.
+
 ## Development
 
 ```sh
@@ -188,7 +196,7 @@ Tests use conda's CLI, context, and environment fixtures. Subprocess tests verif
 
 ## Current Limits
 
-- No authentication, migrations, telemetry, export, or `conda doctor` integration. Automatic prerequisite installation is provided by the two deployment adapters, not a remote feature catalog.
+- No authentication, migrations, telemetry, or export. Automatic prerequisite installation is provided by the two deployment adapters, not a remote feature catalog.
 - Environment checks cover explicit targets and the current user's registry, not every environment on the machine. Prerequisite opt-ins require `--with-dependencies` and confirmation.
 - Runtime activity is not observed. Providers must check their own settings and prerequisites before executing optional behavior.
 - Native verification has covered macOS with conda 26.9.4. The lockfile also includes Linux and Windows, but those platforms have not been tested natively.

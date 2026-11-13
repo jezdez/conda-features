@@ -18,7 +18,10 @@ def load(feature, path):
     receipt = receipt_path(path, feature.name)
     saved = read_receipt(receipt)
     if saved is not None and (
-        saved.get("version") != 2 or not isinstance(saved.get("steps"), dict)
+        not isinstance(saved, dict)
+        or saved.get("version") != 2
+        or not isinstance(saved.get("steps"), dict)
+        or any(not isinstance(state, dict) for state in saved["steps"].values())
     ):
         raise CondaError(
             "Unsupported deployment receipt version. Disable it with the previous provider version before upgrading. No changes made."
@@ -102,6 +105,10 @@ def plan(feature, catalog, ctx, path, scope, operation, *, initial_content=None)
             if operation == "enable"
             else "remove deployment receipt"
         )
+    elif saved and any(
+        not saved["steps"].get(step.id, {}).get("completed") for step in steps
+    ):
+        changes["receipt"] = "finish deployment checkpoints"
     return {
         "features": [feature.name],
         "operation": operation,
