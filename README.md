@@ -4,33 +4,33 @@ A conda plugin for discovering and managing optional features supplied by instal
 
 The core package ships no feature catalog. The separate `conda-features-examples` distribution provides real PyPI and shell-completion deployments. These can install packages and change configuration or shell files after confirmation.
 
-## Try the checkout
+## Install and use
 
-Requires [Pixi](https://pixi.sh). The development environment pins Python 3.12 and conda 26.9.4.
-
-```sh
-pixi install
-pixi run python -m conda feature --help
-pixi run python -m conda feature list
-```
-
-An empty list is expected without a feature provider. To discover the real deployment examples:
+Use Python 3.12 or newer with conda 26.9.4 or newer. Install into the Python environment running conda, not just an environment you want to configure. These packages are not published on PyPI yet. The current installation method is from Git, which requires Git and pip:
 
 ```sh
-pixi install -e examples
-pixi run -e examples python -m conda feature list
-pixi run -e examples python -m conda feature explain conda-pypi
+python -m conda --version
+python -m pip install "conda-features @ git+https://github.com/jezdez/conda-features.git@main"
+python -m pip install "conda-features-examples @ git+https://github.com/jezdez/conda-features.git@main#subdirectory=packages/conda-features-examples"
 ```
 
-Install the plugin into the Python environment running conda, not just the environment you want to configure. Source installation and upgrade guidance are in [Installation](docs/how-to/install.md).
+Use that installation's conda command:
+
+```sh
+conda feature list
+conda feature explain conda-pypi
+conda feature enable conda-pypi --user --dry-run
+```
+
+The first distribution supplies the command. The second supplies real deployment declarations. Enabling a feature can then install missing upstream prerequisites after confirmation. See [Installation](docs/how-to/install.md) for choosing the correct host interpreter and [the tutorial](docs/tutorials/first-deployment.md) for a complete preview, enable, and disable sequence.
 
 ## Documentation
 
 The documentation is published to [GitHub Pages](https://jezdez.github.io/conda-features/) from `main`. Pull requests build the site without deploying it.
 
-Start with the [documentation index](docs/index.md) or the [first deployment tutorial](docs/tutorials/first-deployment.md), which uses a temporary configuration file and preinstalled integration prerequisites.
+Start with the [documentation index](docs/index.md) or the [first deployment tutorial](docs/tutorials/first-deployment.md), which uses your installed plugin and a temporary configuration file.
 
-Build the Sphinx site with `pixi run -e docs docs`. The MyST pages use the conda theme and follow Diátaxis: tutorials, how-to guides, reference, and explanation. HTML is written to `docs/_build/dirhtml`.
+The Sphinx documentation follows Diátaxis: tutorials, how-to guides, reference, and explanation. Contributor setup and documentation build commands are in [Development](docs/how-to/develop.md).
 
 - [Manage features and scopes](docs/how-to/manage-features.md)
 - [Deploy real PyPI support and shell completion](docs/how-to/deploy-providers.md)

@@ -1,6 +1,6 @@
 # Command reference
 
-Use `conda feature COMMAND --help` for the installed parser's exact options. From this checkout, prefix commands with `pixi run python -m conda` or select an examples environment as described in [installation](../how-to/install.md).
+Use `conda feature COMMAND --help` for the installed parser's exact options. Run the conda installation where the plugin is installed. If the bare command selects another installation, use that host interpreter's `python -m conda`. See [installation](../how-to/install.md).
 
 ## Shared options
 

@@ -2,6 +2,15 @@
 
 Use the existing checkout and Pixi environments. The core distribution and real-provider distribution are separate so ordinary tests do not silently install deployment prerequisites into the developer's runtime.
 
+```sh
+pixi install
+pixi run python -m conda feature --help
+pixi install -e integration
+pixi run -e integration test-integration
+```
+
+These are contributor setup commands, not the installation path for plugin users. The integration environment preinstalls upstream dependencies to exercise provider code under controlled conditions. For normal installation and use, follow [Install into the conda runtime](install.md).
+
 ## Environments
 
 | Environment | Includes | Main use |
